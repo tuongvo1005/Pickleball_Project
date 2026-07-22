@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cài đặt Hệ thống - Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4CAF50',
+                        'primary-container': '#dcf5dd',
+                        'on-primary-container': '#0a210b',
+                        surface: '#f5fbef',
+                        'surface-container': '#f0f6ea',
+                        'surface-container-high': '#e6ece0',
+                        outline: '#72796f',
+                        'outline-variant': '#c1c9bc',
+                    },
+                    fontFamily: {
+                        sans: ['Lexend', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Lexend', sans-serif; }
+        .sidebar-active { background-color: #4CAF50; color: white; }
+        
+        /* Tab Active States */
+        .tab-active { border-bottom: 2px solid #4CAF50; color: #4CAF50; font-weight: 700; }
+        .tab-inactive { border-bottom: 2px solid transparent; color: #72796f; font-weight: 500; }
+        .tab-inactive:hover { color: #4CAF50; border-bottom: 2px solid #c1c9bc; }
+
+        /* Toggle Switch */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #4CAF50;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #4CAF50;
+        }
+    </style>
+</head>
+<body class="bg-surface text-slate-900 flex min-h-screen relative">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white border-r border-outline-variant flex flex-col fixed h-full z-10">
+        <div class="p-6 flex items-center gap-3">
+            <div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-white">
+                <span class="material-symbols-outlined">sports_tennis</span>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-primary leading-none">Pickleball Pro</h1>
+                <p class="text-xs text-slate-500 uppercase tracking-wider font-semibold">Admin Dashboard</p>
+            </div>
+        </div>
+
+        <nav class="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+            <a href="index.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-surface-container transition-colors">
+                <span class="material-symbols-outlined">dashboard</span>
+                <span class="font-medium">Bảng điều khiển</span>
+            </a>
+            
+            <p class="px-4 pt-4 pb-2 text-xs font-bold text-slate-400 uppercase tracking-wider">Quản lý Dịch vụ</p>
+            <a href="courts.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-surface-container transition-colors">
+                <span class="material-symbols-outlined">sports_tennis</span>
+                <span class="font-medium">Sân Pickleball</span>
+            </a>
+            <a href="shop.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-surface-container transition-colors">
+                <span class="material-symbols-outlined">inventory_2</span>
+                <span class="font-medium">Cửa hàng & Đơn hàng</span>
+            </a>
+            <a href="coach.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-surface-container transition-colors">
+                <span class="material-symbols-outlined">sports</span>
+                <span class="font-medium">Huấn luyện viên</span>
+            </a>
+            <a href="tournament.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-surface-container transition-colors">
+                <span class="material-symbols-outlined">emoji_events</span>
+                <span class="font-medium">Giải đấu</span>
+            </a>
+
+            <p class="px-4 pt-4 pb-2 text-xs font-bold text-slate-400 uppercase tracking-wider">Hệ thống</p>
+            <a href="reviews.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-surface-container transition-colors">
+                <span class="material-symbols-outlined">rate_review</span>
+                <span class="font-medium">Đánh giá</span>
+            </a>
+            <a href="users.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-surface-container transition-colors">
+                <span class="material-symbols-outlined">group</span>
+                <span class="font-medium">Người dùng</span>
+            </a>
+            <a href="settings.html" class="flex items-center gap-3 px-4 py-3 rounded-xl sidebar-active">
+                <span class="material-symbols-outlined">settings</span>
+                <span class="font-medium">Cài đặt</span>
+            </a>
+            
+            <div class="pt-4">
+                <a href="../user/index.html" class="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-500 transition">
+                    <span class="material-symbols-outlined text-[18px]">arrow_back</span> Trang chủ User
+                </a>
+            </div>
+        </nav>
+
+        <div class="p-4 border-t border-outline-variant">
+            <div class="flex items-center gap-3 p-2">
+                <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop" alt="Admin" class="w-10 h-10 rounded-full border-2 border-primary">
+                <div class="overflow-hidden">
+                    <p class="text-sm font-bold truncate">Nguyễn Văn A</p>
+                    <p class="text-xs text-slate-500 truncate">Quản trị viên</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 ml-64 p-8 w-full min-h-screen">
+        
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-8">
+            <div>
+                <h2 class="text-2xl font-bold text-slate-900">Cài đặt Hệ thống</h2>
+                <p class="text-sm text-slate-500 mt-1">Quản lý cấu hình chung, thanh toán và các tính năng cốt lõi của website.</p>
+            </div>
+            <div>
+                <button onclick="saveSettings()" id="save-btn" class="px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-xl hover:bg-green-700 transition shadow flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[20px]">save</span> Lưu cấu hình
+                </button>
+            </div>
+        </header>
+
+        <div class="flex gap-8">
+            <!-- Settings Sidebar/Tabs -->
+            <div class="w-1/4">
+                <div class="bg-white rounded-2xl border border-outline-variant shadow-sm p-2 flex flex-col gap-1 sticky top-8">
+                    <button onclick="switchTab('general')" id="tab-btn-general" class="w-full text-left px-4 py-3 rounded-xl bg-surface-container text-primary font-bold transition flex items-center gap-3">
+                        <span class="material-symbols-outlined">storefront</span> Cài đặt chung
+                    </button>
+                    <button onclick="switchTab('payment')" id="tab-btn-payment" class="w-full text-left px-4 py-3 rounded-xl text-slate-600 hover:bg-surface-container font-medium transition flex items-center gap-3">
+                        <span class="material-symbols-outlined">account_balance_wallet</span> Thanh toán
+                    </button>
+                    <button onclick="switchTab('notifications')" id="tab-btn-notifications" class="w-full text-left px-4 py-3 rounded-xl text-slate-600 hover:bg-surface-container font-medium transition flex items-center gap-3">
+                        <span class="material-symbols-outlined">notifications_active</span> Thông báo
+                    </button>
+                    <button onclick="switchTab('security')" id="tab-btn-security" class="w-full text-left px-4 py-3 rounded-xl text-slate-600 hover:bg-surface-container font-medium transition flex items-center gap-3">
+                        <span class="material-symbols-outlined">security</span> Bảo mật & Quyền
+                    </button>
+                </div>
+            </div>
+
+            <!-- Settings Content -->
+            <div class="w-3/4">
+                
+                <!-- TAB: CÀI ĐẶT CHUNG -->
+                <div id="tab-general" class="block bg-white rounded-2xl border border-outline-variant shadow-sm p-8">
+                    <h3 class="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">storefront</span> Thông tin chung của Website
+                    </h3>
+                    
+                    <div class="grid grid-cols-2 gap-6 mb-6">
+                        <div class="col-span-2 sm:col-span-1">
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">Tên Website / Thương hiệu</label>
+                            <input type="text" value="Pickleball Pro" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+                        </div>
+                        
+                        <div class="col-span-2 sm:col-span-1">
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">Email liên hệ (Support)</label>
+                            <input type="email" value="support@pickleballpro.vn" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+                        </div>
+
+                        <div class="col-span-2 sm:col-span-1">
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">Số Hotline / Zalo</label>
+                            <input type="text" value="1900 8888" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+                        </div>
+
+                        <div class="col-span-2 sm:col-span-1">
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">Giờ mở cửa Hệ thống sân</label>
+                            <input type="text" value="06:00 - 23:00" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+                        </div>
+
+                        <div class="col-span-2">
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">Địa chỉ Trụ sở</label>
+                            <input type="text" value="Số 10 Nguyễn Thị Thập, Quận 7, TP.HCM" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+                        </div>
+                        
+                        <div class="col-span-2 mt-2">
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">Logo Website</label>
+                            <div class="flex items-center gap-4">
+                                <div class="w-20 h-20 bg-primary rounded-xl flex items-center justify-center text-white shadow-inner">
+                                    <span class="material-symbols-outlined text-[40px]">sports_tennis</span>
+                                </div>
+                                <button class="px-4 py-2 bg-slate-100 text-slate-700 text-sm font-semibold rounded-lg border border-slate-200 hover:bg-slate-200 transition">Đổi Logo</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB: THANH TOÁN -->
+                <div id="tab-payment" class="hidden bg-white rounded-2xl border border-outline-variant shadow-sm p-8">
+                    <h3 class="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">account_balance_wallet</span> Cấu hình Thanh toán
+                    </h3>
+
+                    <div class="space-y-6">
+                        <!-- Chuyển khoản ngân hàng -->
+                        <div class="p-5 border border-outline-variant rounded-xl bg-surface-container">
+                            <div class="flex justify-between items-center mb-4">
+                                <h4 class="font-bold text-slate-900 flex items-center gap-2">
+                                    <span class="material-symbols-outlined">account_balance</span> Chuyển khoản Ngân hàng
+                                </h4>
+                                <!-- Toggle -->
+                                <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                    <input type="checkbox" name="toggle1" id="toggle1" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-slate-300 appearance-none cursor-pointer transition-transform duration-200 ease-in-out" checked/>
+                                    <label for="toggle1" class="toggle-label block overflow-hidden h-5 rounded-full bg-slate-300 cursor-pointer"></label>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-500 mb-1">Tên Ngân hàng</label>
+                                    <input type="text" value="Vietcombank" class="w-full px-3 py-2 rounded-lg border border-outline-variant text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-500 mb-1">Tên Chủ tài khoản</label>
+                                    <input type="text" value="CONG TY TNHH PICKLEBALL PRO" class="w-full px-3 py-2 rounded-lg border border-outline-variant text-sm">
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-xs font-semibold text-slate-500 mb-1">Số tài khoản</label>
+                                    <input type="text" value="1010 2222 3333 44" class="w-full px-3 py-2 rounded-lg border border-outline-variant text-sm font-mono font-bold">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cổng thanh toán MoMo -->
+                        <div class="p-5 border border-outline-variant rounded-xl">
+                            <div class="flex justify-between items-center mb-4">
+                                <h4 class="font-bold text-pink-600 flex items-center gap-2">
+                                    <span class="material-symbols-outlined">qr_code_scanner</span> Thanh toán qua Ví MoMo
+                                </h4>
+                                <!-- Toggle -->
+                                <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                    <input type="checkbox" name="toggle2" id="toggle2" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-slate-300 appearance-none cursor-pointer transition-transform duration-200 ease-in-out" checked/>
+                                    <label for="toggle2" class="toggle-label block overflow-hidden h-5 rounded-full bg-slate-300 cursor-pointer"></label>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-500 mb-1">Partner Code</label>
+                                    <input type="password" value="MOMO123456" class="w-full px-3 py-2 rounded-lg border border-outline-variant text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-500 mb-1">Access Key</label>
+                                    <input type="password" value="*************" class="w-full px-3 py-2 rounded-lg border border-outline-variant text-sm">
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-xs font-semibold text-slate-500 mb-1">Secret Key</label>
+                                    <input type="password" value="*************" class="w-full px-3 py-2 rounded-lg border border-outline-variant text-sm">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB: THÔNG BÁO -->
+                <div id="tab-notifications" class="hidden bg-white rounded-2xl border border-outline-variant shadow-sm p-8">
+                    <h3 class="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">notifications_active</span> Tùy chỉnh Thông báo
+                    </h3>
+                    
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between p-4 border border-outline-variant rounded-xl hover:bg-slate-50 transition">
+                            <div>
+                                <p class="font-bold text-slate-900">Email khi có Đơn hàng mới</p>
+                                <p class="text-sm text-slate-500">Gửi email thông báo cho Admin khi có khách đặt sân hoặc mua hàng.</p>
+                            </div>
+                            <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" id="toggle3" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-slate-300 appearance-none cursor-pointer transition-transform duration-200 ease-in-out" checked/>
+                                <label for="toggle3" class="toggle-label block overflow-hidden h-5 rounded-full bg-slate-300 cursor-pointer"></label>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between p-4 border border-outline-variant rounded-xl hover:bg-slate-50 transition">
+                            <div>
+                                <p class="font-bold text-slate-900">Email nhắc lịch cho Khách hàng</p>
+                                <p class="text-sm text-slate-500">Tự động gửi email nhắc nhở trước giờ chơi Pickleball 2 tiếng.</p>
+                            </div>
+                            <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" id="toggle4" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-slate-300 appearance-none cursor-pointer transition-transform duration-200 ease-in-out" checked/>
+                                <label for="toggle4" class="toggle-label block overflow-hidden h-5 rounded-full bg-slate-300 cursor-pointer"></label>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between p-4 border border-outline-variant rounded-xl hover:bg-slate-50 transition">
+                            <div>
+                                <p class="font-bold text-slate-900">Bảo trì hệ thống (Maintenance Mode)</p>
+                                <p class="text-sm text-red-500">Bật tính năng này sẽ ẩn website với người dùng để bảo trì.</p>
+                            </div>
+                            <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" id="toggle5" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-slate-300 appearance-none cursor-pointer transition-transform duration-200 ease-in-out"/>
+                                <label for="toggle5" class="toggle-label block overflow-hidden h-5 rounded-full bg-slate-300 cursor-pointer"></label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB: BẢO MẬT -->
+                <div id="tab-security" class="hidden bg-white rounded-2xl border border-outline-variant shadow-sm p-8">
+                    <h3 class="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">security</span> Bảo mật & Quyền riêng tư
+                    </h3>
+                    
+                    <div class="mb-6 border-b border-outline-variant pb-6">
+                        <h4 class="font-bold text-slate-800 mb-4">Đổi mật khẩu Quản trị</h4>
+                        <div class="space-y-4 max-w-md">
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-2">Mật khẩu hiện tại</label>
+                                <input type="password" class="w-full px-4 py-2 rounded-xl border border-outline-variant focus:border-primary outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-2">Mật khẩu mới</label>
+                                <input type="password" class="w-full px-4 py-2 rounded-xl border border-outline-variant focus:border-primary outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-2">Xác nhận Mật khẩu mới</label>
+                                <input type="password" class="w-full px-4 py-2 rounded-xl border border-outline-variant focus:border-primary outline-none">
+                            </div>
+                            <button class="px-4 py-2 bg-slate-800 text-white font-bold rounded-lg hover:bg-slate-700 transition">Cập nhật Mật khẩu</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="font-bold text-slate-800 mb-2">Nhật ký hoạt động (Log)</h4>
+                        <p class="text-sm text-slate-500 mb-4">Lưu lại toàn bộ thao tác thêm/xóa/sửa của các tài khoản Admin.</p>
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 h-40 overflow-y-auto text-xs font-mono text-slate-600 space-y-2">
+                            <p>[15:30 07/05/2026] admin_a đã cập nhật giá sản phẩm ID: PROD-102</p>
+                            <p>[14:15 07/05/2026] admin_a đã duyệt đơn đăng ký giải đấu ID: TRN-0012</p>
+                            <p>[10:00 07/05/2026] System đã gửi tự động 15 email nhắc lịch sân.</p>
+                            <p>[09:20 07/05/2026] admin_b đăng nhập thành công.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        
+    </main>
+
+    <script>
+        // Tab switching logic
+        const tabs = ['general', 'payment', 'notifications', 'security'];
+
+        function switchTab(tabId) {
+            // Reset all buttons
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tab-btn-${t}`);
+                btn.className = 'w-full text-left px-4 py-3 rounded-xl text-slate-600 hover:bg-surface-container font-medium transition flex items-center gap-3';
+                document.getElementById(`tab-${t}`).style.display = 'none';
+            });
+            
+            // Set active button
+            const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+            activeBtn.className = 'w-full text-left px-4 py-3 rounded-xl bg-surface-container text-primary font-bold transition flex items-center gap-3';
+            document.getElementById(`tab-${tabId}`).style.display = 'block';
+        }
+
+        // Save logic
+        function saveSettings() {
+            const btn = document.getElementById('save-btn');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<span class="material-symbols-outlined animate-spin" style="font-size:20px">autorenew</span> Đang lưu...';
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                alert('Đã cập nhật cấu hình hệ thống thành công!');
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }, 800);
+        }
+
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes spin { 100% { transform: rotate(360deg); } }
+            .animate-spin { animation: spin 1s linear infinite; }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

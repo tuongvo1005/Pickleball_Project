@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Lịch dạy - Dashboard HLV</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<style>
+  body{font-family:'Lexend',sans-serif;}
+  .material-symbols-outlined{font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24;}
+  
+  /* Lịch CSS */
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background-color: #e2e8f0; /* slate-200 */
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+  .calendar-header-day {
+    background-color: #f8fafc; /* slate-50 */
+    padding: 0.5rem;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.875rem; /* text-sm */
+    color: #64748b; /* slate-500 */
+  }
+  .calendar-day {
+    background-color: white;
+    min-height: 120px;
+    padding: 0.5rem;
+    position: relative;
+    transition: background-color 0.2s;
+  }
+  .calendar-day:hover {
+    background-color: #f1f5f9; /* slate-100 */
+  }
+  .calendar-day.empty {
+    background-color: #f8fafc; /* slate-50 */
+  }
+  .calendar-date {
+    font-weight: 600;
+    font-size: 0.875rem; /* text-sm */
+    color: #334155; /* slate-700 */
+    margin-bottom: 0.5rem;
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+    text-align: center;
+    border-radius: 50%;
+  }
+  .calendar-date.today {
+    background-color: #1976d2; /* blue-600 */
+    color: white;
+  }
+  .event-item {
+    font-size: 0.75rem; /* text-xs */
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    margin-bottom: 0.25rem;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .event-confirmed {
+    background-color: #e8f5e9; /* green-50 */
+    color: #2e7d32; /* green-800 */
+    border-left: 3px solid #4caf50; /* green-500 */
+  }
+  .event-pending {
+    background-color: #fff8e1; /* amber-50 */
+    color: #f57f17; /* amber-800 */
+    border-left: 3px solid #ffb300; /* amber-500 */
+  }
+</style>
+</head>
+<body class="bg-[#f0f6ff] min-h-screen flex flex-col">
+
+<header class="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50">
+<div class="flex justify-between items-center px-6 py-3 max-w-[1280px] mx-auto">
+  <div class="flex items-center gap-3">
+    <div class="w-10 h-10 rounded-xl bg-[#1976d2] flex items-center justify-center">
+      <span class="material-symbols-outlined text-white text-[22px]">sports_kabaddi</span>
+    </div>
+    <div>
+      <p class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Portal</p>
+      <h1 class="text-lg font-bold text-slate-800 leading-none">Huấn Luyện Viên</h1>
+    </div>
+  </div>
+  <nav class="hidden md:flex gap-6 text-sm font-semibold text-slate-600">
+    <a href="index.html" class="hover:text-[#1976d2]">Dashboard</a>
+    <a href="schedule.html" class="text-[#1976d2]">Lịch dạy</a>
+    <a href="students.html" class="hover:text-[#1976d2]">Học viên</a>
+    <a href="income.html" class="hover:text-[#1976d2]">Thu nhập</a>
+  </nav>
+  <div class="flex items-center gap-3">
+    <div class="relative group">
+      <button class="w-10 h-10 rounded-full bg-[#e3f2fd] text-[#1976d2] flex items-center justify-center border-2 border-[#1976d2]/30 hover:opacity-80">
+        <span class="material-symbols-outlined text-[20px]">person</span>
+      </button>
+      <div class="absolute right-0 top-full pt-2 w-52 hidden group-hover:block z-50">
+        <div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+          <div class="px-4 py-3 bg-[#e3f2fd] border-b border-slate-200">
+            <p id="hdr-email" class="text-sm font-bold text-slate-800 truncate"></p>
+            <p class="text-xs text-[#1976d2] font-semibold">Huấn luyện viên</p>
+          </div>
+          <ul class="py-1">
+            <li><a href="../user/profile.html" class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"><span class="material-symbols-outlined text-[16px]">person</span>Hồ sơ cá nhân</a></li>
+            <li><a href="../user/index.html" class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"><span class="material-symbols-outlined text-[16px]">home</span>Trang người dùng</a></li>
+            <li><a href="#" onclick="doLogout(event)" class="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"><span class="material-symbols-outlined text-[16px]">logout</span>Đăng xuất</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</header>
+
+<main class="flex-grow max-w-[1280px] mx-auto px-6 py-8 w-full flex flex-col md:flex-row gap-6">
+
+  <!-- Sidebar -->
+  <div class="w-full md:w-1/3 lg:w-1/4">
+    <!-- Filter Card -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-6">
+      <h3 class="font-bold text-slate-800 mb-4">Lọc lịch dạy</h3>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">Trạng thái</label>
+          <select id="filter-status" class="w-full p-2 border border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-[#1976d2]">
+            <option value="all">Tất cả trạng thái</option>
+            <option value="confirmed">Đã xác nhận</option>
+            <option value="pending">Chờ xác nhận</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">Học viên</label>
+          <input type="text" id="filter-student" placeholder="Tên học viên..." class="w-full p-2 border border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-[#1976d2]">
+        </div>
+        <button onclick="renderCalendar()" class="w-full bg-[#1976d2] text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition">Áp dụng</button>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+      <h3 class="font-bold text-slate-800 mb-4">Thao tác nhanh</h3>
+      <button onclick="openModal('add')" class="w-full flex items-center justify-center gap-2 bg-[#e8f5e9] text-[#2e7d32] font-bold py-2 rounded-lg hover:bg-[#c8e6c9] transition mb-2">
+        <span class="material-symbols-outlined text-[18px]">add</span> Thêm lịch hẹn mới
+      </button>
+      <button onclick="alert('Tính năng đồng bộ Google Calendar đang phát triển')" class="w-full flex items-center justify-center gap-2 bg-slate-100 text-slate-700 font-bold py-2 rounded-lg hover:bg-slate-200 transition">
+        <span class="material-symbols-outlined text-[18px]">sync</span> Đồng bộ Calendar
+      </button>
+    </div>
+  </div>
+
+  <!-- Calendar Area -->
+  <div class="w-full md:w-2/3 lg:w-3/4">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+      
+      <!-- Calendar Header (Month/Year controls) -->
+      <div class="flex justify-between items-center mb-6">
+        <h2 id="calendar-month-year" class="text-xl font-bold text-slate-800">Tháng 5, 2026</h2>
+        <div class="flex gap-2">
+          <button onclick="changeMonth(-1)" class="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 hover:text-[#1976d2] transition">
+            <span class="material-symbols-outlined text-[18px]">chevron_left</span>
+          </button>
+          <button onclick="goToToday()" class="px-3 h-8 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-[#1976d2] transition">Hôm nay</button>
+          <button onclick="changeMonth(1)" class="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 hover:text-[#1976d2] transition">
+            <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Calendar Grid -->
+      <div class="calendar-grid">
+        <!-- Day Names -->
+        <div class="calendar-header-day">T2</div>
+        <div class="calendar-header-day">T3</div>
+        <div class="calendar-header-day">T4</div>
+        <div class="calendar-header-day">T5</div>
+        <div class="calendar-header-day">T6</div>
+        <div class="calendar-header-day">T7</div>
+        <div class="calendar-header-day">CN</div>
+        
+        <!-- Days will be generated by JS -->
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Add/Edit Event Modal -->
+<div id="event-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex justify-center items-center backdrop-blur-sm p-4">
+  <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
+    <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700">
+      <span class="material-symbols-outlined">close</span>
+    </button>
+    <h3 id="modal-title" class="text-xl font-bold text-slate-800 mb-6">Thêm lịch dạy</h3>
+    
+    <form id="event-form" onsubmit="saveEvent(event)">
+      <input type="hidden" id="event-id">
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1">Tên học viên <span class="text-red-500">*</span></label>
+          <input type="text" id="event-student" required class="w-full p-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:border-[#1976d2]">
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1">Ngày <span class="text-red-500">*</span></label>
+            <input type="date" id="event-date" required class="w-full p-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:border-[#1976d2]">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1">Giờ bắt đầu <span class="text-red-500">*</span></label>
+            <input type="time" id="event-time" required class="w-full p-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:border-[#1976d2]">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1">Sân tập</label>
+          <input type="text" id="event-court" placeholder="VD: Sân VPA Quận 7" class="w-full p-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:border-[#1976d2]">
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1">Trạng thái</label>
+          <select id="event-status" class="w-full p-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:border-[#1976d2]">
+            <option value="confirmed">Đã xác nhận</option>
+            <option value="pending">Chờ xác nhận</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="mt-8 flex gap-3">
+        <button type="button" onclick="closeModal()" class="flex-1 py-2.5 rounded-lg border border-slate-300 font-bold text-slate-600 hover:bg-slate-50 transition">Hủy</button>
+        <button type="submit" id="save-btn" class="flex-1 py-2.5 rounded-lg bg-[#1976d2] text-white font-bold hover:bg-blue-700 transition">Lưu</button>
+      </div>
+      <div id="delete-btn-container" class="mt-3 hidden">
+        <button type="button" onclick="deleteEvent()" class="w-full py-2 rounded-lg text-red-600 font-semibold text-sm hover:bg-red-50 transition">Xóa lịch này</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Auth Check
+  document.addEventListener('DOMContentLoaded', () => {
+    const userJson = localStorage.getItem('pickleballUser');
+    if (!userJson) { window.location.href = '../user/login.html'; return; }
+    try {
+      const user = JSON.parse(userJson);
+      if (user.role !== 'coach') { window.location.href = '../user/index.html'; return; }
+      document.getElementById('hdr-email').textContent = user.email;
+    } catch(e) { window.location.href = '../user/login.html'; }
+    
+    initCalendar();
+  });
+
+  function doLogout(e) {
+    e.preventDefault();
+    localStorage.removeItem('pickleballUser');
+    window.location.href = '../user/login.html';
+  }
+
+  // --- MOCK DATA ---
+  // Format YYYY-MM-DD
+  let events = [
+    { id: 1, date: '2026-05-14', time: '07:00', student: 'Nguyễn Văn A', court: 'Sân VPA Quận 7', status: 'confirmed' },
+    { id: 2, date: '2026-05-15', time: '16:00', student: 'Trần Thị B', court: 'Sala Pickleball Club', status: 'pending' },
+    { id: 3, date: '2026-05-16', time: '09:00', student: 'Lê Hoàng C', court: 'Sân Kỳ Hòa Quận 1', status: 'confirmed' },
+    { id: 4, date: '2026-05-20', time: '18:00', student: 'Phạm Thị D', court: 'Sân Q10', status: 'confirmed' }
+  ];
+
+  // Load from localStorage if exists
+  const storedEvents = localStorage.getItem('coachSchedule');
+  if(storedEvents) {
+      events = JSON.parse(storedEvents);
+  } else {
+      localStorage.setItem('coachSchedule', JSON.stringify(events));
+  }
+
+
+  // --- CALENDAR LOGIC ---
+  let currentDate = new Date(2026, 4, 12); // Initialize to May 12, 2026 for demo purposes
+  const monthNames = ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
+
+  function initCalendar() {
+    renderCalendar();
+  }
+
+  function changeMonth(delta) {
+    currentDate.setMonth(currentDate.getMonth() + delta);
+    renderCalendar();
+  }
+
+  function goToToday() {
+    currentDate = new Date(2026, 4, 12); // Reset to demo today
+    renderCalendar();
+  }
+
+  function renderCalendar() {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    
+    document.getElementById('calendar-month-year').textContent = `${monthNames[month]}, ${year}`;
+    
+    const firstDayOfMonth = new Date(year, month, 1);
+    const lastDayOfMonth = new Date(year, month + 1, 0);
+    
+    // Adjust to make Monday the first day of the week (0) instead of Sunday (0 in JS)
+    let firstDayOfWeek = firstDayOfMonth.getDay() - 1;
+    if (firstDayOfWeek === -1) firstDayOfWeek = 6; // Sunday becomes 6
+    
+    const daysInMonth = lastDayOfMonth.getDate();
+    
+    // Get all calendar days (existing grid elements minus headers)
+    const grid = document.querySelector('.calendar-grid');
+    // Remove old days
+    const oldDays = grid.querySelectorAll('.calendar-day');
+    oldDays.forEach(day => day.remove());
+
+    const filterStatus = document.getElementById('filter-status').value;
+    const filterStudent = document.getElementById('filter-student').value.toLowerCase();
+
+    // Create empty cells before month start
+    for (let i = 0; i < firstDayOfWeek; i++) {
+      grid.insertAdjacentHTML('beforeend', '<div class="calendar-day empty"></div>');
+    }
+
+    // Create days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      
+      // Is today? (Mock today is 2026-05-12)
+      const isToday = (day === 12 && month === 4 && year === 2026);
+      const dateClass = isToday ? 'calendar-date today' : 'calendar-date';
+
+      // Find events for this day
+      const dayEvents = events.filter(e => {
+        if(e.date !== dateString) return false;
+        
+        // Apply filters
+        if(filterStatus !== 'all' && e.status !== filterStatus) return false;
+        if(filterStudent && !e.student.toLowerCase().includes(filterStudent)) return false;
+        
+        return true;
+      });
+
+      // Sort events by time
+      dayEvents.sort((a, b) => a.time.localeCompare(b.time));
+
+      let eventsHtml = dayEvents.map(e => {
+        const cssClass = e.status === 'confirmed' ? 'event-confirmed' : 'event-pending';
+        return `
+          <div class="event-item ${cssClass}" onclick="openModal('edit', ${e.id})">
+            <span class="font-bold">${e.time}</span> ${e.student}
+          </div>
+        `;
+      }).join('');
+
+      const dayHtml = `
+        <div class="calendar-day">
+          <span class="${dateClass}">${day}</span>
+          <div class="mt-1 space-y-1">
+            ${eventsHtml}
+          </div>
+        </div>
+      `;
+      grid.insertAdjacentHTML('beforeend', dayHtml);
+    }
+  }
+
+  // --- MODAL LOGIC ---
+  const modal = document.getElementById('event-modal');
+  let currentEditId = null;
+
+  function openModal(mode, id = null) {
+    const form = document.getElementById('event-form');
+    form.reset();
+    
+    if (mode === 'add') {
+      document.getElementById('modal-title').textContent = 'Thêm lịch dạy';
+      document.getElementById('event-id').value = '';
+      document.getElementById('delete-btn-container').classList.add('hidden');
+      
+      // Default to currently viewed month/year or today
+      document.getElementById('event-date').value = '2026-05-12';
+      currentEditId = null;
+    } else {
+      document.getElementById('modal-title').textContent = 'Chỉnh sửa lịch dạy';
+      const event = events.find(e => e.id === id);
+      if(event) {
+        document.getElementById('event-id').value = event.id;
+        document.getElementById('event-student').value = event.student;
+        document.getElementById('event-date').value = event.date;
+        document.getElementById('event-time').value = event.time;
+        document.getElementById('event-court').value = event.court;
+        document.getElementById('event-status').value = event.status;
+        document.getElementById('delete-btn-container').classList.remove('hidden');
+        currentEditId = id;
+      }
+    }
+    
+    modal.classList.remove('hidden');
+  }
+
+  function closeModal() {
+    modal.classList.add('hidden');
+  }
+
+  function saveEvent(e) {
+    e.preventDefault();
+    
+    const id = document.getElementById('event-id').value;
+    const newEvent = {
+      id: id ? parseInt(id) : Date.now(), // Generate new ID if adding
+      student: document.getElementById('event-student').value,
+      date: document.getElementById('event-date').value,
+      time: document.getElementById('event-time').value,
+      court: document.getElementById('event-court').value,
+      status: document.getElementById('event-status').value
+    };
+
+    if (id) {
+      // Update
+      events = events.map(ev => ev.id === newEvent.id ? newEvent : ev);
+    } else {
+      // Add
+      events.push(newEvent);
+    }
+
+    // Save & Refresh
+    localStorage.setItem('coachSchedule', JSON.stringify(events));
+    renderCalendar();
+    closeModal();
+  }
+
+  function deleteEvent() {
+    if(!currentEditId) return;
+    if(confirm('Bạn có chắc chắn muốn xóa lịch này không?')) {
+      events = events.filter(e => e.id !== currentEditId);
+      localStorage.setItem('coachSchedule', JSON.stringify(events));
+      renderCalendar();
+      closeModal();
+    }
+  }
+
+</script>
+</body>
+</html>

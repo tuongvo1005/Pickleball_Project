@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Đánh Giá Cộng Đồng - PickleBall Pro</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#006e1c",
+                        "on-primary": "#ffffff",
+                        "primary-container": "#4caf50",
+                        "on-primary-container": "#003c0b",
+                        "surface": "#f5fbef",
+                        "surface-variant": "#dee4d9",
+                        "surface-container": "#eaf0e4",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface": "#171d16",
+                        "on-surface-variant": "#3f4a3c",
+                        "outline": "#6f7a6b",
+                        "outline-variant": "#becab9",
+                        "error": "#ba1a1a",
+                        "inverse-primary": "#78dc77",
+                        "secondary": "#5f5e5e",
+                        "tertiary": "#a63360",
+                        "surface-tint": "#006e1c",
+                    },
+                    spacing: {
+                        "lg": "40px",
+                        "gutter": "24px",
+                        "xl": "64px",
+                        "xs": "4px",
+                        "md": "24px",
+                        "base": "8px",
+                        "sm": "12px",
+                        "container-max": "1280px"
+                    },
+                    fontFamily: {
+                        "h1": ["Lexend"],
+                        "body-md": ["Lexend"],
+                        "label-caps": ["Lexend"],
+                        "h3": ["Lexend"],
+                        "body-lg": ["Lexend"],
+                        "h2": ["Lexend"],
+                        "display": ["Lexend"],
+                        "button": ["Lexend"],
+                        "body-sm": ["Lexend"]
+                    },
+                    fontSize: {
+                        "h1": ["32px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                        "h2": ["24px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                        "h3": ["20px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "button": ["16px", {"lineHeight": "1", "fontWeight": "600"}],
+                        "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Lexend', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        
+        .progress-bar::-webkit-progress-bar { background-color: #dee4d9; border-radius: 99px; }
+        .progress-bar::-webkit-progress-value { background-color: #f57f17; border-radius: 99px; }
+        
+        /* Modal Animation */
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .modal-animate { animation: modalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        /* Star Hover Effect */
+        .star-rating .material-symbols-outlined { cursor: pointer; transition: color 0.2s, transform 0.2s; }
+        .star-rating .material-symbols-outlined:hover { transform: scale(1.2); }
+    </style>
+</head>
+<body class="bg-[#f5fbef] text-[#171d16] min-h-screen flex flex-col relative">
+
+<!-- TopAppBar Component -->
+<header class="bg-surface border-b border-outline-variant shadow-sm sticky top-0 z-50">
+<div class="flex justify-between items-center px-gutter py-sm max-w-container-max mx-auto w-full">
+<div class="text-h2 font-h2 text-primary tracking-tight flex items-center gap-2">
+    <span class="material-symbols-outlined text-[28px]" style='font-variation-settings: "FILL" 1;'>sports_tennis</span>
+    PickleBall Pro
+</div>
+<nav class="hidden md:flex gap-md items-center">
+    <a class="text-on-surface-variant font-body-md hover:text-primary transition-colors duration-200 active:scale-95 transition-transform" href="index.html">Trang chủ</a>
+    <a class="text-on-surface-variant font-body-md hover:text-primary transition-colors duration-200 active:scale-95 transition-transform" href="courts.html">Tìm sân</a>
+    <a class="text-on-surface-variant font-body-md hover:text-primary transition-colors duration-200 active:scale-95 transition-transform" href="shop.html">Dụng cụ</a>
+    <a class="text-on-surface-variant font-body-md hover:text-primary transition-colors duration-200 active:scale-95 transition-transform" href="tournament.html">Giải đấu</a>
+    <a class="text-on-surface-variant font-body-md hover:text-primary transition-colors duration-200 active:scale-95 transition-transform" href="coach.html">Huấn luyện viên</a>
+    <a class="text-primary border-b-2 border-primary pb-1 font-bold active:scale-95 transition-transform" href="review.html">Đánh giá</a>
+    <a class="text-on-surface-variant font-body-md hover:text-primary transition-colors duration-200 active:scale-95 transition-transform" href="profile.html">Hồ sơ</a>
+</nav>
+<div class="flex items-center gap-sm" id="auth-container">
+    <a href="courts.html" class="bg-primary text-on-primary text-button font-button px-md py-sm rounded-full active:scale-95 transition-transform hover:bg-surface-tint inline-block shadow-md">Đặt ngay</a>
+    <a id="login-btn" href="login.html" class="flex items-center gap-xs bg-primary text-on-primary text-button font-button px-md py-sm rounded-full active:scale-95 transition-transform hover:bg-surface-tint shadow-md">
+      <span class="material-symbols-outlined text-[18px]">login</span>
+      Đăng nhập
+    </a>
+</div>
+</div>
+</header>
+
+<!-- Main Content -->
+<main class="flex-grow max-w-[1024px] mx-auto px-4 sm:px-6 py-8 w-full flex flex-col">
+
+    <!-- Header Section -->
+    <div class="text-center mb-10">
+        <h1 class="text-3xl md:text-5xl font-extrabold text-[#171d16] mb-4 tracking-tight">Cộng Đồng <span class="text-[#006e1c]">Pickleball</span></h1>
+        <p class="text-[#3f4a3c] text-lg max-w-2xl mx-auto">Nơi chia sẻ trải nghiệm sân đấu, huấn luyện viên và chất lượng dịch vụ thực tế từ hơn 10.000 người chơi tại PickleBall Pro.</p>
+    </div>
+
+    <!-- Stats & CTA Card -->
+    <div class="bg-white rounded-3xl border border-[#becab9] shadow-md p-6 md:p-8 flex flex-col md:flex-row gap-8 items-center mb-10 relative overflow-hidden">
+        <!-- Decoration -->
+        <div class="absolute -top-20 -right-20 w-48 h-48 bg-[#eaf0e4] rounded-full blur-3xl opacity-60"></div>
+        
+        <!-- Big Score -->
+        <div class="flex-shrink-0 text-center md:w-1/3 md:border-r border-[#becab9] relative z-10">
+            <p class="text-6xl font-black text-[#171d16] tracking-tighter">4.8</p>
+            <div class="flex justify-center text-[#f57f17] my-2">
+                <span class="material-symbols-outlined text-[28px]" style="font-variation-settings:'FILL' 1">star</span>
+                <span class="material-symbols-outlined text-[28px]" style="font-variation-settings:'FILL' 1">star</span>
+                <span class="material-symbols-outlined text-[28px]" style="font-variation-settings:'FILL' 1">star</span>
+                <span class="material-symbols-outlined text-[28px]" style="font-variation-settings:'FILL' 1">star</span>
+                <span class="material-symbols-outlined text-[28px]" style="font-variation-settings:'FILL' 1">star_half</span>
+            </div>
+            <p class="text-[#5f5e5e] text-sm">Dựa trên <span class="font-bold text-[#171d16]">1,284</span> đánh giá</p>
+        </div>
+        
+        <!-- Progress Bars -->
+        <div class="flex-grow w-full relative z-10">
+            <div class="space-y-2.5">
+                <div class="flex items-center gap-3 text-sm">
+                    <span class="w-12 text-[#171d16] font-semibold flex items-center justify-end gap-1">5 <span class="material-symbols-outlined text-[14px] text-[#f57f17]" style="font-variation-settings:'FILL' 1">star</span></span>
+                    <progress value="85" max="100" class="progress-bar flex-grow h-2.5 rounded-full"></progress>
+                    <span class="w-10 text-[#5f5e5e] text-right">85%</span>
+                </div>
+                <div class="flex items-center gap-3 text-sm">
+                    <span class="w-12 text-[#171d16] font-semibold flex items-center justify-end gap-1">4 <span class="material-symbols-outlined text-[14px] text-[#f57f17]" style="font-variation-settings:'FILL' 1">star</span></span>
+                    <progress value="10" max="100" class="progress-bar flex-grow h-2.5 rounded-full"></progress>
+                    <span class="w-10 text-[#5f5e5e] text-right">10%</span>
+                </div>
+                <div class="flex items-center gap-3 text-sm">
+                    <span class="w-12 text-[#171d16] font-semibold flex items-center justify-end gap-1">3 <span class="material-symbols-outlined text-[14px] text-[#f57f17]" style="font-variation-settings:'FILL' 1">star</span></span>
+                    <progress value="3" max="100" class="progress-bar flex-grow h-2.5 rounded-full"></progress>
+                    <span class="w-10 text-[#5f5e5e] text-right">3%</span>
+                </div>
+                <div class="flex items-center gap-3 text-sm">
+                    <span class="w-12 text-[#171d16] font-semibold flex items-center justify-end gap-1">2 <span class="material-symbols-outlined text-[14px] text-[#f57f17]" style="font-variation-settings:'FILL' 1">star</span></span>
+                    <progress value="1" max="100" class="progress-bar flex-grow h-2.5 rounded-full"></progress>
+                    <span class="w-10 text-[#5f5e5e] text-right">1%</span>
+                </div>
+                <div class="flex items-center gap-3 text-sm">
+                    <span class="w-12 text-[#171d16] font-semibold flex items-center justify-end gap-1">1 <span class="material-symbols-outlined text-[14px] text-[#f57f17]" style="font-variation-settings:'FILL' 1">star</span></span>
+                    <progress value="1" max="100" class="progress-bar flex-grow h-2.5 rounded-full"></progress>
+                    <span class="w-10 text-[#5f5e5e] text-right">1%</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- CTA Button -->
+        <div class="flex-shrink-0 relative z-10 w-full md:w-auto mt-4 md:mt-0 text-center">
+            <p class="text-sm text-[#3f4a3c] mb-3 font-medium">Bạn đã có trải nghiệm?</p>
+            <button id="open-review-modal" class="w-full bg-[#006e1c] text-white px-8 py-3.5 rounded-2xl font-bold hover:bg-[#005313] transition-colors shadow-lg active:scale-95 flex items-center justify-center gap-2">
+                <span class="material-symbols-outlined text-[20px]" style="font-variation-settings:'FILL' 0">edit</span> Viết đánh giá
+            </button>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div class="flex bg-white p-1 rounded-xl border border-[#becab9] shadow-sm w-full sm:w-auto" id="review-filters">
+            <button class="filter-btn active-filter flex-1 px-5 py-2 rounded-lg text-sm font-bold bg-[#eaf0e4] text-[#006e1c] transition-all" data-filter="all">Mới nhất</button>
+            <button class="filter-btn flex-1 px-5 py-2 rounded-lg text-sm font-semibold text-[#3f4a3c] hover:bg-[#f5fbef] transition-all" data-filter="positive">5 & 4 Sao</button>
+            <button class="filter-btn flex-1 px-5 py-2 rounded-lg text-sm font-semibold text-[#3f4a3c] hover:bg-[#f5fbef] transition-all" data-filter="negative">Dưới 3 Sao</button>
+        </div>
+        <div class="relative w-full sm:w-64">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7a6b] text-[18px]">search</span>
+            <input type="text" id="search-review" placeholder="Tìm kiếm đánh giá..." class="w-full pl-9 pr-3 py-2 rounded-xl border border-[#becab9] text-sm focus:border-[#006e1c] outline-none bg-white shadow-sm"/>
+        </div>
+    </div>
+
+    <!-- Review List Container -->
+    <div id="reviews-container" class="space-y-6">
+        <!-- Review Card 1 -->
+        <div class="review-card bg-white p-6 rounded-2xl border border-[#becab9] shadow-sm" data-rating="5" data-text="cơ sở vật chất tuyệt vời sân sạch sẽ">
+            <div class="flex justify-between items-start mb-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-[#1976d2] text-white flex items-center justify-center font-bold text-lg">M</div>
+                    <div>
+                        <h4 class="font-bold text-[#171d16]">Minh Trần</h4>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <div class="flex text-[#f57f17]">
+                                <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1">star</span>
+                                <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1">star</span>
+                                <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1">star</span>
+                                <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1">star</span>
+                                <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1">star</span>
+                            </div>
+                            <span class="text-xs text-[#5f5e5e] font-medium">• 2 ngày trước</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="hidden sm:inline-flex items-center gap-1 bg-[#eaf0e4] text-[#006e1c] px-2 py-1 rounded text-xs font-bold border border-[#becab9]">
+                    <span class="material-symbols-outlined text-[14px]">verified</span> Đã đặt sân
+                </span>
+            </div>
+            <p class="text-[#3f4a3c] leading-relaxed mb-4">
+                Cơ sở vật chất tuyệt vời! Sân sạch sẽ, độ nảy của bóng rất chuẩn. Hệ thống đèn chiếu sáng cực kỳ tốt vào buổi tối, không bị chói mắt. Căn tin có nhiều đồ uống lạnh ngon. Chắc chắn sẽ quay lại ủng hộ dài dài.
+            </p>
+            <div class="flex gap-2 mb-4">
+                <div class="w-20 h-20 rounded-lg overflow-hidden border border-[#becab9]">
+                    <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuD81CN0kOFdmR_QyALUaDCBkWwUQWDO9djU9Mt93-8AUPxlSiQzeUIFFfg5HM9qWuS2wUNM0CknLjh-XFXH1L8YG5h_ta7H07tpr0hoPmazJRPxJ4HYr29B9N_NF9ucU9DjHXRczd7j9_VuwCrwfMvt9Di_NNRSRBNiYRJKBb5zoyq3fckjAGMFJNe9ifcR1G1N-5fJSqhOpPrq_ntUBhYz6au2LH35vI862yF_4bod5N8TGvqgaFm3RFCusC6qdzimZ5o6rUlu93vz" class="w-full h-full object-cover">
+                </div>
+            </div>
+            <div class="flex items-center gap-4 text-xs font-semibold text-[#5f5e5e]">
+                <button class="flex items-center gap-1 hover:text-[#006e1c] transition-colors"><span class="material-symbols-outlined text-[18px]">thumb_up</span> 24 Hữu ích</button>
+                <button class="flex items-center gap-1 hover:text-[#ba1a1a] transition-colors"><span class="material-symbols-outlined text-[18px]">flag</span> Báo cáo</button>
+            </div>
+        </div>
+
+        <!-- Review Card 2 -->
+        <div class="review-card bg-white p-6 rounded-2xl border border-[#becab9] shadow-sm" data-rating="4" data-text="hlv nhiệt tình nhưng bãi đỗ xe hơi chật">
+            <div class="flex justify-between items-start mb-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-[#a63360] text-white flex items-center justify-center font-bold text-lg">H</div>
+                    <div>
+                        <h4 class="font-bold text-[#171d16]">Hương Giang</h4>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <div class="flex text-[#f57f17]">
+                                <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1">star</span>
+                                <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1">star</span>
+                                <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1">star</span>
+                                <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1">star</span>
+                                <span class="material-symbols-outlined text-[16px]" style="color:#dee4d9; font-variation-settings:'FILL' 1">star</span>
+                            </div>
+                            <span class="text-xs text-[#5f5e5e] font-medium">• 1 tuần trước</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="hidden sm:inline-flex items-center gap-1 bg-[#eaf0e4] text-[#006e1c] px-2 py-1 rounded text-xs font-bold border border-[#becab9]">
+                    <span class="material-symbols-outlined text-[14px]">verified</span> Đã thuê HLV
+                </span>
+            </div>
+            <p class="text-[#3f4a3c] leading-relaxed mb-4">
+                Huấn luyện viên Lê Hoàng C rất nhiệt tình và chỉ dẫn dễ hiểu. Sau 3 buổi học mình đã nắm vững luật và kỹ thuật cơ bản. Trừ 1 sao vì bãi đỗ xe vào giờ cao điểm hơi chật chội, ban quản lý nên sắp xếp lại.
+            </p>
+            <div class="flex items-center gap-4 text-xs font-semibold text-[#5f5e5e]">
+                <button class="flex items-center gap-1 hover:text-[#006e1c] transition-colors"><span class="material-symbols-outlined text-[18px]">thumb_up</span> 8 Hữu ích</button>
+            </div>
+        </div>
+
+        <!-- Review Card 3 -->
+        <div class="review-card bg-white p-6 rounded-2xl border border-[#becab9] shadow-sm" data-rating="2" data-text="giá nước cao, lưới bị rách nhẹ">
+            <div class="flex justify-between items-start mb-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-[#5f5e5e] text-white flex items-center justify-center font-bold text-lg">T</div>
+                    <div>
+                        <h4 class="font-bold text-[#171d16]">Tuấn Anh</h4>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <div class="flex text-[#f57f17]">
+                                <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1">star</span>
+                                <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1">star</span>
+                                <span class="material-symbols-outlined text-[16px]" style="color:#dee4d9; font-variation-settings:'FILL' 1">star</span>
+                                <span class="material-symbols-outlined text-[16px]" style="color:#dee4d9; font-variation-settings:'FILL' 1">star</span>
+                                <span class="material-symbols-outlined text-[16px]" style="color:#dee4d9; font-variation-settings:'FILL' 1">star</span>
+                            </div>
+                            <span class="text-xs text-[#5f5e5e] font-medium">• 2 tuần trước</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p class="text-[#3f4a3c] leading-relaxed mb-4">
+                Sân ở quận Bình Thạnh mặt sân khá trơn, có vẻ lâu chưa được vệ sinh kỹ. Lưới ở sân số 3 bị rách nhẹ. Giá nước uống ở đây cũng cao hơn mặt bằng chung. Mong ban quản lý cải thiện sớm.
+            </p>
+            <!-- Admin Reply -->
+            <div class="bg-[#f5fbef] border-l-4 border-[#006e1c] p-4 rounded-r-xl mt-2 mb-4">
+                <p class="text-xs font-bold text-[#006e1c] mb-1 flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">admin_panel_settings</span> Phản hồi từ Ban Quản Lý</p>
+                <p class="text-sm text-[#3f4a3c]">Chào bạn Tuấn Anh, cảm ơn bạn đã góp ý. Chúng tôi đã tiến hành thay lưới sân số 3 và đang triển khai lịch vệ sinh sân định kỳ hàng ngày thay vì 2 ngày/lần. Rất mong được đón tiếp bạn quay lại!</p>
+            </div>
+            <div class="flex items-center gap-4 text-xs font-semibold text-[#5f5e5e]">
+                <button class="flex items-center gap-1 hover:text-[#006e1c] transition-colors"><span class="material-symbols-outlined text-[18px]">thumb_up</span> 2 Hữu ích</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-8 text-center" id="no-reviews" style="display:none;">
+        <span class="material-symbols-outlined text-[48px] text-[#becab9] mb-2">comments_disabled</span>
+        <p class="text-[#5f5e5e] font-medium">Không tìm thấy đánh giá nào phù hợp với bộ lọc.</p>
+    </div>
+
+    <!-- Pagination -->
+    <div class="flex justify-center mt-10 gap-2">
+        <button class="w-10 h-10 rounded-full flex items-center justify-center border border-[#becab9] text-[#6f7a6b] hover:bg-[#eaf0e4] hover:text-[#006e1c] transition-colors" disabled>
+            <span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">chevron_left</span>
+        </button>
+        <button class="w-10 h-10 rounded-full flex items-center justify-center bg-[#006e1c] text-white font-bold shadow-md">1</button>
+        <button class="w-10 h-10 rounded-full flex items-center justify-center border border-[#becab9] text-[#3f4a3c] hover:bg-[#eaf0e4] hover:text-[#006e1c] transition-colors font-semibold">2</button>
+        <button class="w-10 h-10 rounded-full flex items-center justify-center border border-[#becab9] text-[#3f4a3c] hover:bg-[#eaf0e4] hover:text-[#006e1c] transition-colors">
+            <span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">chevron_right</span>
+        </button>
+    </div>
+
+</main>
+
+<!-- Review Modal -->
+<div id="review-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex justify-center items-center backdrop-blur-sm p-4">
+    <div class="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl modal-animate flex flex-col">
+        <div class="p-6 border-b border-[#becab9] flex justify-between items-center bg-[#f5fbef]">
+            <h2 class="text-xl font-bold text-[#171d16] flex items-center gap-2">
+                <span class="material-symbols-outlined text-[#006e1c]">rate_review</span> Viết Đánh Giá
+            </h2>
+            <button id="close-modal-btn" class="text-[#5f5e5e] hover:text-[#ba1a1a] transition-colors">
+                <span class="material-symbols-outlined text-[24px]">close</span>
+            </button>
+        </div>
+        <div class="p-6">
+            <div class="text-center mb-6">
+                <p class="text-sm font-semibold text-[#3f4a3c] mb-2">Trải nghiệm của bạn thế nào?</p>
+                <div class="flex justify-center gap-2 star-rating text-[#dee4d9]" id="input-stars">
+                    <span class="material-symbols-outlined text-[40px]" data-val="1" style="font-variation-settings:'FILL' 1">star</span>
+                    <span class="material-symbols-outlined text-[40px]" data-val="2" style="font-variation-settings:'FILL' 1">star</span>
+                    <span class="material-symbols-outlined text-[40px]" data-val="3" style="font-variation-settings:'FILL' 1">star</span>
+                    <span class="material-symbols-outlined text-[40px]" data-val="4" style="font-variation-settings:'FILL' 1">star</span>
+                    <span class="material-symbols-outlined text-[40px]" data-val="5" style="font-variation-settings:'FILL' 1">star</span>
+                </div>
+                <p class="text-xs font-bold text-[#f57f17] mt-2 h-4" id="star-desc"></p>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-[#3f4a3c] mb-1">Chi tiết đánh giá <span class="text-[#ba1a1a]">*</span></label>
+                    <textarea id="review-text" rows="4" placeholder="Hãy chia sẻ chi tiết về chất lượng sân, dịch vụ, thái độ nhân viên..." class="w-full px-4 py-3 rounded-xl border border-[#becab9] focus:border-[#006e1c] outline-none text-[#171d16] bg-[#f5fbef] resize-none"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-[#3f4a3c] mb-1">Đính kèm hình ảnh (Tùy chọn)</label>
+                    <div class="border-2 border-dashed border-[#becab9] rounded-xl p-4 flex flex-col items-center justify-center text-[#5f5e5e] bg-[#f5fbef] cursor-pointer hover:bg-[#eaf0e4] hover:border-[#006e1c] transition-colors">
+                        <span class="material-symbols-outlined mb-1">add_a_photo</span>
+                        <span class="text-xs font-medium">Bấm để tải ảnh lên</span>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-8">
+                <button id="submit-review-btn" class="w-full bg-[#006e1c] text-white py-3.5 rounded-xl font-bold hover:bg-[#005313] transition-colors shadow-md active:scale-95 flex justify-center items-center gap-2">
+                    Gửi Đánh Giá
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Footer -->
+<footer class="bg-[#dee4d9] border-t border-[#becab9] w-full mt-auto">
+    <div class="max-w-[1280px] mx-auto px-6 py-12 flex flex-col md:flex-row justify-between items-start gap-8">
+        <div>
+            <div class="text-xl font-bold text-[#171d16] mb-2">PickleBall Pro</div>
+            <p class="text-sm text-[#5f5e5e] mb-4">Nền tảng kết nối cộng đồng Pickleball hàng đầu Việt Nam.</p>
+            <p class="text-sm text-[#5f5e5e]">© 2026 PickleBall Pro. All rights reserved.</p>
+        </div>
+        <div class="flex flex-col md:flex-row gap-12">
+            <div>
+                <p class="text-xs font-bold text-[#3f4a3c] uppercase tracking-widest mb-3">Dịch vụ</p>
+                <nav class="flex flex-col gap-2">
+                    <a href="index.html" class="text-sm text-[#5f5e5e] hover:text-[#006e1c] transition-colors">Trang chủ</a>
+                    <a href="courts.html" class="text-sm text-[#5f5e5e] hover:text-[#006e1c] transition-colors">Tìm sân</a>
+                    <a href="shop.html" class="text-sm text-[#5f5e5e] hover:text-[#006e1c] transition-colors">Dụng cụ</a>
+                </nav>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script>
+    // Auth & Avatar Setup
+    let currentUser = null;
+    document.addEventListener('DOMContentLoaded', () => {
+        const userJson = localStorage.getItem('pickleballUser');
+        if (userJson) {
+            try {
+                currentUser = JSON.parse(userJson);
+                const authContainer = document.getElementById('auth-container');
+                if (authContainer) {
+                    const loginBtn = document.getElementById('login-btn');
+                    if (loginBtn) loginBtn.remove();
+                    
+                    const avatarHtml = `
+                        <div class="relative group ml-1">
+                            <button class="w-10 h-10 rounded-full bg-[#4caf50] text-[#003c0b] flex items-center justify-center border border-[#006e1c] overflow-hidden hover:opacity-80 transition-opacity">
+                                <span class="material-symbols-outlined text-[20px]">person</span>
+                            </button>
+                            <div class="absolute right-0 top-full pt-2 w-48 hidden group-hover:block z-50">
+                                <div class="bg-white rounded-xl shadow-lg border border-[#becab9] overflow-hidden">
+                                    <div class="px-4 py-3 border-b border-[#becab9]">
+                                        <p class="text-sm font-semibold text-[#171d16] truncate">${currentUser.email}</p>
+                                        <p class="text-xs text-[#3f4a3c] capitalize">${currentUser.role === 'admin' ? 'Quản trị viên' : 'Người dùng'}</p>
+                                    </div>
+                                    <ul class="py-2">
+                                        <li><a href="profile.html" class="block px-4 py-2 text-sm text-[#171d16] hover:bg-[#dee4d9] flex items-center gap-2"><span class="material-symbols-outlined text-[18px]">person</span> Hồ sơ</a></li>
+                                        <li><a href="#" onclick="window.logout(event)" class="block px-4 py-2 text-sm text-[#ba1a1a] hover:bg-[#ffdad6] flex items-center gap-2"><span class="material-symbols-outlined text-[18px]">logout</span> Đăng xuất</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    authContainer.insertAdjacentHTML('beforeend', avatarHtml);
+                }
+            } catch(e) {}
+        }
+    });
+
+    window.logout = function(e) {
+        e.preventDefault();
+        localStorage.removeItem('pickleballUser');
+        window.location.reload();
+    };
+
+    // Filter Logic
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    const cards = document.querySelectorAll('.review-card');
+    const noReviews = document.getElementById('no-reviews');
+    const searchInput = document.getElementById('search-review');
+
+    function applyFilters() {
+        const activeFilterBtn = document.querySelector('.active-filter');
+        const filterType = activeFilterBtn ? activeFilterBtn.dataset.filter : 'all';
+        const query = searchInput.value.toLowerCase();
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+            const rating = parseInt(card.dataset.rating, 10);
+            const text = card.dataset.text || '';
+            
+            let matchesFilter = true;
+            if (filterType === 'positive' && rating < 4) matchesFilter = false;
+            if (filterType === 'negative' && rating >= 4) matchesFilter = false;
+            
+            let matchesSearch = text.includes(query);
+
+            if (matchesFilter && matchesSearch) {
+                card.style.display = 'block';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        noReviews.style.display = visibleCount === 0 ? 'block' : 'none';
+    }
+
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            filterBtns.forEach(b => {
+                b.classList.remove('bg-[#eaf0e4]', 'text-[#006e1c]', 'active-filter');
+                b.classList.add('text-[#3f4a3c]');
+            });
+            btn.classList.remove('text-[#3f4a3c]');
+            btn.classList.add('bg-[#eaf0e4]', 'text-[#006e1c]', 'active-filter');
+            applyFilters();
+        });
+    });
+
+    searchInput.addEventListener('input', applyFilters);
+
+    // Modal & Rating Logic
+    const modal = document.getElementById('review-modal');
+    const openBtn = document.getElementById('open-review-modal');
+    const closeBtn = document.getElementById('close-modal-btn');
+    const stars = document.querySelectorAll('#input-stars span');
+    const starDesc = document.getElementById('star-desc');
+    let currentRating = 0;
+
+    const descriptions = {
+        1: 'Rất tệ', 2: 'Tệ', 3: 'Bình thường', 4: 'Tốt', 5: 'Tuyệt vời'
+    };
+
+    openBtn.addEventListener('click', () => {
+        if (!currentUser) {
+            alert('Vui lòng đăng nhập để viết đánh giá!');
+            window.location.href = 'login.html';
+            return;
+        }
+        modal.classList.remove('hidden');
+    });
+
+    closeBtn.addEventListener('click', () => {
+        modal.classList.add('hidden');
+    });
+
+    // Star Selection
+    stars.forEach(star => {
+        star.addEventListener('mouseover', (e) => {
+            const val = parseInt(e.target.dataset.val);
+            updateStars(val);
+            starDesc.textContent = descriptions[val];
+        });
+        
+        star.addEventListener('mouseout', () => {
+            updateStars(currentRating);
+            starDesc.textContent = currentRating ? descriptions[currentRating] : '';
+        });
+        
+        star.addEventListener('click', (e) => {
+            currentRating = parseInt(e.target.dataset.val);
+            updateStars(currentRating);
+            starDesc.textContent = descriptions[currentRating];
+        });
+    });
+
+    function updateStars(val) {
+        stars.forEach(s => {
+            const v = parseInt(s.dataset.val);
+            if (v <= val) {
+                s.style.color = '#f57f17'; // Yellow
+            } else {
+                s.style.color = '#dee4d9'; // Grey
+            }
+        });
+    }
+
+    // Submit Review
+    document.getElementById('submit-review-btn').addEventListener('click', function() {
+        const text = document.getElementById('review-text').value.trim();
+        
+        if (currentRating === 0) {
+            alert('Vui lòng chọn số sao đánh giá!');
+            return;
+        }
+        if (!text) {
+            alert('Vui lòng nhập nội dung đánh giá!');
+            return;
+        }
+
+        const btn = this;
+        btn.innerHTML = '<span class="material-symbols-outlined animate-spin">autorenew</span> Đang gửi...';
+        
+        setTimeout(() => {
+            // Create New Card
+            const userName = currentUser.email.split('@')[0];
+            const initial = userName.charAt(0).toUpperCase();
+            
+            // Build stars HTML
+            let starsHtml = '';
+            for(let i=1; i<=5; i++) {
+                if(i <= currentRating) {
+                    starsHtml += `<span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1">star</span>`;
+                } else {
+                    starsHtml += `<span class="material-symbols-outlined text-[16px]" style="color:#dee4d9; font-variation-settings:'FILL' 1">star</span>`;
+                }
+            }
+
+            const newCard = document.createElement('div');
+            newCard.className = 'review-card bg-[#eaf0e4] p-6 rounded-2xl border border-[#006e1c] shadow-sm animate-pulse';
+            newCard.dataset.rating = currentRating;
+            newCard.dataset.text = text.toLowerCase();
+            
+            newCard.innerHTML = `
+                <div class="flex justify-between items-start mb-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-full bg-[#006e1c] text-white flex items-center justify-center font-bold text-lg">${initial}</div>
+                        <div>
+                            <h4 class="font-bold text-[#171d16]">${userName}</h4>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <div class="flex text-[#f57f17]">
+                                    ${starsHtml}
+                                </div>
+                                <span class="text-xs text-[#5f5e5e] font-medium">• Vừa xong</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-[#3f4a3c] leading-relaxed mb-4">${text}</p>
+            `;
+
+            // Insert at top
+            const container = document.getElementById('reviews-container');
+            container.insertBefore(newCard, container.firstChild);
+            
+            // Remove pulse after a bit
+            setTimeout(() => {
+                newCard.classList.remove('bg-[#eaf0e4]', 'border-[#006e1c]', 'animate-pulse');
+                newCard.classList.add('bg-white', 'border-[#becab9]');
+            }, 2000);
+
+            alert('Cảm ơn bạn! Đánh giá đã được đăng.');
+            modal.classList.add('hidden');
+            
+            // Reset form
+            document.getElementById('review-text').value = '';
+            currentRating = 0;
+            updateStars(0);
+            starDesc.textContent = '';
+            btn.innerHTML = 'Gửi Đánh Giá';
+            
+            applyFilters();
+
+        }, 1000);
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,144 @@
+================================================================
+           PICKLEBALL PRO - TỔNG HỢP TÍNH NĂNG HỆ THỐNG
+================================================================
+Tech Stack: Laravel 10 (Backend API) | ReactJS (Frontend SPA)
+Database  : MySQL (Dữ liệu thực tế qua Axios API Client)
+Kiến trúc : RESTful API, Route Guards (Sanctum), State Management
+================================================================
+
+CẤU TRÚC DỰ ÁN THỰC TẾ
+----------------------
+Pickleball_Project/
+├── backend/               ← Laravel API Backend
+│   ├── app/Http/Controllers/  ← Xử lý Logic (Auth, Booking, Order, Message, Review...)
+│   └── database/migrations/   ← Cấu trúc bảng cơ sở dữ liệu MySQL
+└── frontend-react/        ← ReactJS Single Page Application
+    └── src/
+        ├── pages/         ← Giao diện người dùng (Courts, Shop, Coaches, Tournaments...)
+        └── components/    ← Các UI Component (LiveChatWidget, CourtGrid, Navbar...)
+
+
+================================================================
+PHÂN HỆ KHÁCH HÀNG (ReactJS Frontend Pages)
+================================================================
+
+[1] ĐĂNG NHẬP / ĐĂNG KÝ & QUẢN LÝ TÀI KHOẢN (Login.jsx / UserProfile.jsx)
+------------------------------------------------------------------------
+✔ Xác thực tập trung: Sử dụng Laravel Sanctum lưu Token lưu trữ trạng thái.
+✔ Phân quyền người dùng: Chia 3 nhóm chính (Customer / Coach / Admin).
+✔ Đăng ký tài khoản mới: Mã hóa mật khẩu bảo mật Bcrypt phía Backend.
+✔ Đăng nhập & Đăng xuất: Đồng bộ trạng thái toàn cục qua AuthContext.
+✔ Quản lý hồ sơ: Cập nhật Họ tên, Số điện thoại, Tiểu sử (bio).
+✔ Quản lý hồ sơ Huấn luyện viên: Chỉnh sửa học phí/giờ, năm kinh nghiệm, chuyên môn.
+✔ Upload Avatar: API tải lên và lưu trữ ảnh đại diện trực tiếp trên máy chủ.
+✔ Route Guards: Chặn và tự chuyển hướng về trang đăng nhập nếu cố tình truy cập trang yêu cầu quyền.
+
+[2] TRANG CHỦ (Home.jsx)
+------------------------
+✔ Hero banner: Slide chào mừng kèm nút CTA đặt sân trực tiếp.
+✔ Sân nổi bật: Hiển thị các sân đấu tiêu biểu từ cơ sở dữ liệu.
+✔ Số liệu thống kê: Đếm số lượng sân đấu, huấn luyện viên và khách hàng hoạt động.
+✔ Điều hướng nhanh: Hệ thống menu thân thiện, liên kết nhanh các phân hệ dịch vụ.
+
+[3] ĐẶT SÂN CHƠI TỰ DO TRỰC TUYẾN (Courts.jsx / CourtDetail.jsx)
+--------------------------------------------------------------
+✔ Tìm kiếm & Bộ lọc: Lọc real-time theo loại sân (Trong nhà / Ngoài trời), giá thuê, tiện ích.
+✔ Sơ đồ ca chơi: Hiển thị danh sách các khung giờ trống của từng sân theo ngày chọn.
+✔ Đặt sân: Chọn ngày, giờ bắt đầu và thời lượng ca chơi (1 giờ, 1.5 giờ, 2 giờ, 3 giờ...).
+✔ Ràng buộc trùng lịch: Backend tự động kiểm tra trùng ca chơi và báo lỗi nếu sân bận hoặc bảo trì.
+✔ Giả lập thanh toán trực tuyến: Tích hợp cổng thanh toán ảo (MoMo Sandbox / Chuyển khoản VietQR).
+✔ Cập nhật trạng thái: Gọi API cập nhật payment_status thành "paid" và khóa ca chơi ngay lập tức.
+
+[4] THUÊ HUẤN LUYỆN VIÊN & TỰ ĐỘNG GÁN SÂN (Coaches.jsx)
+--------------------------------------------------------
+✔ Danh sách HLV: Hiển thị thông tin chi tiết (avatar, kinh nghiệm, chuyên môn, đánh giá).
+✔ Thuê HLV: Chọn ngày học và một trong các ca học cố định 2 tiếng/ca.
+✔ Thuật toán gán sân tự động: Backend tự động quét các sân đấu còn trống trong khung giờ học.
+  - Nếu có sân trống: Tự động gán ID sân trống vào lịch học và tính học phí (2 giờ học).
+  - Nếu HLV bận hoặc tất cả các sân đấu đều kín lịch: Trả về lỗi ngăn đặt lịch.
+✔ Gửi yêu cầu: Tạo lịch đặt ở trạng thái "pending" (Chờ duyệt) gửi cho Admin xử lý.
+
+[5] ĐĂNG KÝ GIẢI ĐẤU (Tournaments.jsx)
+--------------------------------------
+✔ Danh sách giải: Lọc giải đấu theo trạng thái (Đang đăng ký / Sắp diễn ra / Đã kết thúc).
+✔ Xem chi tiết giải: Xem thông tin điều lệ, quy mô đội, cơ cấu giải thưởng.
+✔ Đăng ký tham gia: Form nhập tên đội và số điện thoại liên hệ.
+✔ Ràng buộc giải đấu: Backend tự động đếm số lượng đội hiện tại để khóa đăng ký khi đạt giới hạn tối đa.
+
+[6] MUA SẮM DỤNG CỤ PICKLEBALL (Shop.jsx / Cart.jsx)
+----------------------------------------------------
+✔ Cửa hàng trực tuyến: Lưới sản phẩm (vợt, bóng, phụ kiện) phân chia theo danh mục.
+✔ Giỏ hàng slide-out: Thêm, bớt số lượng, xóa sản phẩm và tự động tính tổng tiền.
+✔ Đặt hàng: Form điền thông tin người nhận (Họ tên, SĐT, Địa chỉ chi tiết).
+✔ Kiểm tra hàng tồn kho: Hệ thống kiểm tra stock sản phẩm trước khi tạo đơn và trừ tồn kho thực tế.
+✔ Trạng thái đơn hàng: Tạo đơn hàng mới trong cơ sở dữ liệu với trạng thái mặc định "pending" (Chờ thanh toán).
+
+[7] LỊCH SỬ ĐẶT LỊCH & ĐƠN HÀNG (UserProfile.jsx / MyOrders.jsx)
+---------------------------------------------------------------
+✔ Quản lý đơn hàng: Xem danh sách đơn hàng đã mua kèm trạng thái (Chờ thanh toán / Đang giao / Đã giao).
+✔ Lịch sử đặt sân: Xem danh sách ca chơi đã đặt và lịch sử thuê HLV.
+✔ Hủy đơn đặt lịch: Khách hàng tự gửi yêu cầu hủy đối với lịch chơi trước giờ bắt đầu tối thiểu 24 tiếng.
+✔ Khách xác nhận: Nút bấm "Xác nhận đã nhận hàng" để hoàn tất đơn hàng mua dụng cụ.
+
+[8] LIVE CHAT HỖ TRỢ (LiveChatWidget.jsx / Support.jsx)
+-------------------------------------------------------
+✔ Chat widget: Khách hàng nhắn tin trực tiếp với quản trị viên từ bất kỳ trang nào.
+✔ Lịch sử chat: Tin nhắn được lưu trữ trong bảng messages và hiển thị theo dạng chuỗi luồng hội thoại.
+✔ Real-time polling: Tự động cập nhật tin nhắn mới liên tục mà không cần tải lại trang.
+
+[9] ĐÁNH GIÁ ĐA HÌNH (ReviewController.php)
+-------------------------------------------
+✔ Đánh giá chất lượng: Cho phép khách hàng gửi đánh giá kèm theo số sao (rating) và bình luận.
+✔ Quan hệ đa hình (Polymorphic): Review có thể đánh giá cho cả Sân đấu (Court) hoặc Huấn luyện viên (Coach).
+
+
+================================================================
+PHÂN HỆ QUẢN TRỊ (ReactJS Admin Pages - /admin)
+================================================================
+
+[1] THỐNG KÊ TỔNG QUAN (Dashboard.jsx)
+--------------------------------------
+✔ Thống kê tổng: Hiển thị doanh thu, tổng số lượt đặt sân, số lượng đơn hàng và số thành viên.
+
+[2] QUẢN LÝ NGƯỜI DÙNG (ManageUsers.jsx)
+---------------------------------------
+✔ Quản lý tài khoản: Thêm mới tài khoản, phân quyền (User, Coach, Admin).
+✔ Sửa hồ sơ Coach: Chỉnh sửa chuyên môn, bio, mức lương giờ của huấn luyện viên từ trang quản trị.
+✔ Xác thực bảo mật: Admin phải nhập mật khẩu xác nhận của mình trước khi lưu thông tin cập nhật tài khoản.
+
+[3] QUẢN LÝ SÂN ĐẤU (ManageCourts.jsx)
+--------------------------------------
+✔ Quản lý sân: Thêm sân đấu mới, sửa thông tin sân (tên, mô tả, giá/giờ, loại sân), xóa sân đấu khỏi hệ thống.
+
+[4] QUẢN LÝ SẢN PHẨM & TỒN KHO (ManageProducts.jsx)
+---------------------------------------------------
+✔ Quản lý sản phẩm: Thêm, sửa giá bán, tải ảnh sản phẩm, cập nhật số lượng tồn kho sản phẩm.
+
+[5] QUẢN LÝ ĐẶT LỊCH (ManageBookings.jsx)
+-----------------------------------------
+✔ Kiểm soát lịch chơi: Xem danh sách toàn bộ lịch đặt sân/HLV của hệ thống.
+✔ Cập nhật lịch đặt: Đổi sân đấu, thay đổi giờ chơi hoặc xóa/hủy lịch đặt của khách hàng.
+
+[6] QUẢN LÝ ĐƠN HÀNG (ManageOrders.jsx)
+---------------------------------------
+✔ Kiểm soát đơn hàng: Xem danh sách đơn hàng shop, cập nhật trạng thái đơn (Chờ thanh toán -> Đang giao -> Đã hoàn tất).
+
+[7] QUẢN LÝ GIẢI ĐẤU (ManageTournaments.jsx)
+--------------------------------------------
+✔ Tổ chức giải đấu: Thêm giải đấu mới (tên giải, mô tả, ngày diễn ra, số đội tối đa).
+✔ Danh sách thi đấu: Thêm đội thủ công hoặc xóa bỏ đội vi phạm điều lệ giải.
+
+
+================================================================
+CƠ SỞ DỮ LIỆU MYSQL (Các bảng chính)
+================================================================
+  - users          → Lưu trữ tài khoản khách hàng, HLV, quản trị viên
+  - courts         → Danh sách các sân đấu Pickleball và đơn giá thuê
+  - bookings       → Lịch sử đặt lịch chơi, lịch học HLV và trạng thái
+  - products       → Danh sách dụng cụ thể thao bán tại Shop
+  - orders         → Danh sách hóa đơn mua sắm dụng cụ
+  - order_items    → Chi tiết các mặt hàng trong từng hóa đơn shop
+  - tournaments    → Thông tin các giải đấu Pickleball được tổ chức
+  - messages       → Lưu tin nhắn chat thời gian thực giữa user và admin
+  - reviews        → Lưu đánh giá đa hình (đánh giá sân hoặc đánh giá HLV)
+================================================================

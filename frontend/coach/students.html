@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Học viên - Dashboard HLV</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<style>
+  body{font-family:'Lexend',sans-serif;}
+  .material-symbols-outlined{font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24;}
+</style>
+</head>
+<body class="bg-[#f0f6ff] min-h-screen flex flex-col">
+
+<header class="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50">
+<div class="flex justify-between items-center px-6 py-3 max-w-[1280px] mx-auto">
+  <div class="flex items-center gap-3">
+    <div class="w-10 h-10 rounded-xl bg-[#1976d2] flex items-center justify-center">
+      <span class="material-symbols-outlined text-white text-[22px]">sports_kabaddi</span>
+    </div>
+    <div>
+      <p class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Portal</p>
+      <h1 class="text-lg font-bold text-slate-800 leading-none">Huấn Luyện Viên</h1>
+    </div>
+  </div>
+  <nav class="hidden md:flex gap-6 text-sm font-semibold text-slate-600">
+    <a href="index.html" class="hover:text-[#1976d2]">Dashboard</a>
+    <a href="schedule.html" class="hover:text-[#1976d2]">Lịch dạy</a>
+    <a href="students.html" class="text-[#1976d2]">Học viên</a>
+    <a href="income.html" class="hover:text-[#1976d2]">Thu nhập</a>
+  </nav>
+  <div class="flex items-center gap-3">
+    <div class="relative group">
+      <button class="w-10 h-10 rounded-full bg-[#e3f2fd] text-[#1976d2] flex items-center justify-center border-2 border-[#1976d2]/30 hover:opacity-80">
+        <span class="material-symbols-outlined text-[20px]">person</span>
+      </button>
+      <div class="absolute right-0 top-full pt-2 w-52 hidden group-hover:block z-50">
+        <div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+          <div class="px-4 py-3 bg-[#e3f2fd] border-b border-slate-200">
+            <p id="hdr-email" class="text-sm font-bold text-slate-800 truncate"></p>
+            <p class="text-xs text-[#1976d2] font-semibold">Huấn luyện viên</p>
+          </div>
+          <ul class="py-1">
+            <li><a href="../user/profile.html" class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"><span class="material-symbols-outlined text-[16px]">person</span>Hồ sơ cá nhân</a></li>
+            <li><a href="../user/index.html" class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"><span class="material-symbols-outlined text-[16px]">home</span>Trang người dùng</a></li>
+            <li><a href="#" onclick="doLogout(event)" class="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"><span class="material-symbols-outlined text-[16px]">logout</span>Đăng xuất</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</header>
+
+<main class="flex-grow max-w-[1280px] mx-auto px-6 py-8 w-full flex flex-col md:flex-row gap-6">
+
+  <!-- Main Content -->
+  <div class="w-full md:w-2/3 lg:w-3/4">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <!-- Toolbar -->
+      <div class="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <span class="material-symbols-outlined text-[#388e3c]">group</span> Danh sách học viên
+        </h2>
+        <div class="flex items-center gap-3 w-full sm:w-auto">
+          <div class="relative flex-grow">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>
+            <input type="text" id="search-input" oninput="renderStudents()" placeholder="Tìm tên, SĐT..." class="w-full sm:w-64 pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-[#1976d2]">
+          </div>
+          <button onclick="openModal('add')" class="bg-[#1976d2] text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition flex items-center gap-1 whitespace-nowrap">
+            <span class="material-symbols-outlined text-[18px]">person_add</span> Thêm mới
+          </button>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+              <th class="px-6 py-3 font-semibold">Học viên</th>
+              <th class="px-6 py-3 font-semibold">Trình độ</th>
+              <th class="px-6 py-3 font-semibold text-center">Số buổi</th>
+              <th class="px-6 py-3 font-semibold">Đánh giá</th>
+              <th class="px-6 py-3 font-semibold text-right">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="students-tbody" class="divide-y divide-slate-100 text-sm text-slate-700">
+            <!-- Render via JS -->
+          </tbody>
+        </table>
+        
+        <!-- Empty State -->
+        <div id="empty-state" class="hidden py-12 flex-col items-center justify-center text-slate-500">
+          <span class="material-symbols-outlined text-[64px] text-slate-300 mb-4">person_search</span>
+          <p class="font-semibold">Không tìm thấy học viên nào</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar: Student Details -->
+  <div class="w-full md:w-1/3 lg:w-1/4">
+    <div id="student-detail-card" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sticky top-24 hidden">
+      <div class="flex flex-col items-center text-center border-b border-slate-100 pb-4 mb-4">
+        <div id="detail-avatar" class="w-20 h-20 rounded-full bg-[#e3f2fd] text-[#1976d2] flex items-center justify-center text-3xl font-bold mb-3"></div>
+        <h3 id="detail-name" class="font-bold text-lg text-slate-800"></h3>
+        <p id="detail-phone" class="text-sm text-slate-500 mt-1"></p>
+        <div id="detail-level-badge" class="mt-2 text-xs font-bold px-3 py-1 rounded-full"></div>
+      </div>
+      
+      <div class="space-y-4">
+        <div class="flex justify-between items-center text-sm">
+          <span class="text-slate-500">Đánh giá</span>
+          <span id="detail-rating" class="font-bold text-[#f57f17]"></span>
+        </div>
+        <div class="flex justify-between items-center text-sm">
+          <span class="text-slate-500">Số buổi đã học</span>
+          <span id="detail-sessions" class="font-bold text-slate-800"></span>
+        </div>
+        <div class="flex justify-between items-center text-sm">
+          <span class="text-slate-500">Ngày tham gia</span>
+          <span id="detail-joined" class="font-bold text-slate-800"></span>
+        </div>
+        
+        <div class="pt-2">
+          <label class="block text-xs font-bold text-slate-500 mb-2">Ghi chú của HLV</label>
+          <div id="detail-notes" class="bg-[#fff8e1] p-3 rounded-lg text-sm text-slate-700 min-h-[80px] border border-[#ffecb3]">
+          </div>
+        </div>
+        
+        <button id="btn-edit-current" class="w-full flex items-center justify-center gap-2 border border-slate-200 text-slate-700 font-bold py-2 rounded-lg hover:bg-slate-50 transition mt-4">
+          <span class="material-symbols-outlined text-[18px]">edit</span> Sửa thông tin
+        </button>
+      </div>
+    </div>
+    
+    <div id="no-student-selected" class="bg-slate-50 rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-400 sticky top-24">
+      <span class="material-symbols-outlined text-[48px] mb-2 opacity-50">touch_app</span>
+      <p class="text-sm font-semibold">Chọn học viên để xem chi tiết</p>
+    </div>
+  </div>
+
+</main>
+
+<!-- Add/Edit Student Modal -->
+<div id="student-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex justify-center items-center backdrop-blur-sm p-4">
+  <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
+    <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700">
+      <span class="material-symbols-outlined">close</span>
+    </button>
+    <h3 id="modal-title" class="text-xl font-bold text-slate-800 mb-6">Thêm Học Viên</h3>
+    
+    <form id="student-form" onsubmit="saveStudent(event)">
+      <input type="hidden" id="student-id">
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1">Họ và Tên <span class="text-red-500">*</span></label>
+          <input type="text" id="form-name" required class="w-full p-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:border-[#1976d2]">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1">Số điện thoại <span class="text-red-500">*</span></label>
+          <input type="tel" id="form-phone" required class="w-full p-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:border-[#1976d2]">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1">Trình độ</label>
+            <select id="form-level" class="w-full p-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:border-[#1976d2]">
+              <option value="Người mới">Người mới</option>
+              <option value="Cơ bản">Cơ bản</option>
+              <option value="Nâng cao">Nâng cao</option>
+              <option value="Trẻ em">Trẻ em</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1">Đánh giá (Sao)</label>
+            <input type="number" id="form-rating" step="0.1" min="0" max="5" value="5.0" class="w-full p-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:border-[#1976d2]">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1">Ghi chú (Điểm mạnh, yếu...)</label>
+          <textarea id="form-notes" rows="3" class="w-full p-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:border-[#1976d2]"></textarea>
+        </div>
+      </div>
+      
+      <div class="mt-8 flex gap-3">
+        <button type="button" onclick="closeModal()" class="flex-1 py-2.5 rounded-lg border border-slate-300 font-bold text-slate-600 hover:bg-slate-50 transition">Hủy</button>
+        <button type="submit" class="flex-1 py-2.5 rounded-lg bg-[#1976d2] text-white font-bold hover:bg-blue-700 transition">Lưu Học Viên</button>
+      </div>
+      <div id="delete-btn-container" class="mt-3 hidden">
+        <button type="button" onclick="deleteStudent()" class="w-full py-2 rounded-lg text-red-600 font-semibold text-sm hover:bg-red-50 transition flex items-center justify-center gap-1">
+          <span class="material-symbols-outlined text-[18px]">delete</span> Xóa học viên này
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Auth Check
+  document.addEventListener('DOMContentLoaded', () => {
+    const userJson = localStorage.getItem('pickleballUser');
+    if (!userJson) { window.location.href = '../user/login.html'; return; }
+    try {
+      const user = JSON.parse(userJson);
+      if (user.role !== 'coach') { window.location.href = '../user/index.html'; return; }
+      document.getElementById('hdr-email').textContent = user.email;
+    } catch(e) { window.location.href = '../user/login.html'; }
+    
+    initStudents();
+  });
+
+  function doLogout(e) {
+    e.preventDefault();
+    localStorage.removeItem('pickleballUser');
+    window.location.href = '../user/login.html';
+  }
+
+  // --- MOCK DATA ---
+  let students = [
+    { id: 1, name: 'Nguyễn Văn A', phone: '0901234567', level: 'Người mới', sessions: 3, rating: 5.0, joined: '10/05/2026', notes: 'Thể lực tốt, cần cải thiện kỹ thuật đánh backhand. Rất chăm chỉ.', color: 'bg-[#e3f2fd] text-[#1976d2]' },
+    { id: 2, name: 'Trần Thị B', phone: '0912345678', level: 'Nâng cao', sessions: 8, rating: 4.8, joined: '15/04/2026', notes: 'Đánh đôi rất tốt. Cần rèn thêm tâm lý khi bị dẫn điểm.', color: 'bg-[#fce4ec] text-[#c2185b]' },
+    { id: 3, name: 'Lê Hoàng C', phone: '0923456789', level: 'Trẻ em', sessions: 5, rating: 5.0, joined: '01/05/2026', notes: 'Bé rất năng động, nắm bắt luật nhanh.', color: 'bg-[#e8f5e9] text-[#388e3c]' },
+    { id: 4, name: 'Phạm Thị D', phone: '0934567890', level: 'Người mới', sessions: 1, rating: 4.5, joined: '11/05/2026', notes: 'Buổi đầu tiên còn bỡ ngỡ. Hướng dẫn cách cầm vợt chuẩn.', color: 'bg-[#fff3e0] text-[#f57f17]' },
+  ];
+
+  const colors = [
+    'bg-[#e3f2fd] text-[#1976d2]', // blue
+    'bg-[#fce4ec] text-[#c2185b]', // pink
+    'bg-[#e8f5e9] text-[#388e3c]', // green
+    'bg-[#fff3e0] text-[#f57f17]', // orange
+    'bg-[#f3e5f5] text-[#7b1fa2]', // purple
+  ];
+
+  // Load from localStorage
+  const storedStudents = localStorage.getItem('coachStudents');
+  if(storedStudents) {
+      students = JSON.parse(storedStudents);
+  } else {
+      localStorage.setItem('coachStudents', JSON.stringify(students));
+  }
+
+  let currentSelectedId = null;
+
+  function initStudents() {
+    renderStudents();
+  }
+
+  function renderStudents() {
+    const tbody = document.getElementById('students-tbody');
+    const emptyState = document.getElementById('empty-state');
+    const searchTerm = document.getElementById('search-input').value.toLowerCase();
+    
+    tbody.innerHTML = '';
+    
+    const filtered = students.filter(s => 
+      s.name.toLowerCase().includes(searchTerm) || 
+      s.phone.includes(searchTerm) ||
+      s.level.toLowerCase().includes(searchTerm)
+    );
+
+    if (filtered.length === 0) {
+      emptyState.style.display = 'flex';
+    } else {
+      emptyState.style.display = 'none';
+      
+      filtered.forEach(s => {
+        const isSelected = currentSelectedId === s.id;
+        const rowClass = isSelected ? 'bg-blue-50 cursor-pointer transition' : 'hover:bg-slate-50 cursor-pointer transition';
+        const initial = s.name.charAt(0).toUpperCase();
+        
+        let levelColor = 'text-slate-600 bg-slate-100';
+        if(s.level === 'Người mới') levelColor = 'text-[#1976d2] bg-[#e3f2fd]';
+        if(s.level === 'Cơ bản') levelColor = 'text-[#388e3c] bg-[#e8f5e9]';
+        if(s.level === 'Nâng cao') levelColor = 'text-[#c2185b] bg-[#fce4ec]';
+        if(s.level === 'Trẻ em') levelColor = 'text-[#f57f17] bg-[#fff3e0]';
+
+        const tr = document.createElement('tr');
+        tr.className = rowClass;
+        tr.onclick = () => selectStudent(s.id);
+        
+        tr.innerHTML = `
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full ${s.color} flex items-center justify-center font-bold text-lg flex-shrink-0">
+                ${initial}
+              </div>
+              <div>
+                <p class="font-bold text-slate-800">${s.name}</p>
+                <p class="text-xs text-slate-500">${s.phone}</p>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4">
+            <span class="px-2.5 py-1 rounded-full text-xs font-bold ${levelColor}">${s.level}</span>
+          </td>
+          <td class="px-6 py-4 text-center font-bold text-slate-800">${s.sessions}</td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-1 font-bold text-[#f57f17]">
+              <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1;">star</span> ${s.rating.toFixed(1)}
+            </div>
+          </td>
+          <td class="px-6 py-4 text-right">
+            <button onclick="event.stopPropagation(); openModal('edit', ${s.id})" class="p-1.5 text-slate-400 hover:text-[#1976d2] hover:bg-blue-50 rounded-lg transition">
+              <span class="material-symbols-outlined text-[20px]">edit</span>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+  }
+
+  function selectStudent(id) {
+    currentSelectedId = id;
+    renderStudents(); // Re-render to show selected state in table
+    
+    const s = students.find(st => st.id === id);
+    if(!s) return;
+    
+    document.getElementById('no-student-selected').classList.add('hidden');
+    const detailCard = document.getElementById('student-detail-card');
+    detailCard.classList.remove('hidden');
+    
+    document.getElementById('detail-avatar').className = `w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold mb-3 ${s.color}`;
+    document.getElementById('detail-avatar').textContent = s.name.charAt(0).toUpperCase();
+    document.getElementById('detail-name').textContent = s.name;
+    document.getElementById('detail-phone').textContent = s.phone;
+    
+    let levelColor = 'text-slate-600 bg-slate-100';
+    if(s.level === 'Người mới') levelColor = 'text-[#1976d2] bg-[#e3f2fd]';
+    if(s.level === 'Cơ bản') levelColor = 'text-[#388e3c] bg-[#e8f5e9]';
+    if(s.level === 'Nâng cao') levelColor = 'text-[#c2185b] bg-[#fce4ec]';
+    if(s.level === 'Trẻ em') levelColor = 'text-[#f57f17] bg-[#fff3e0]';
+    
+    const badge = document.getElementById('detail-level-badge');
+    badge.className = `mt-2 text-xs font-bold px-3 py-1 rounded-full ${levelColor}`;
+    badge.textContent = s.level;
+
+    document.getElementById('detail-rating').innerHTML = `<span class="material-symbols-outlined text-[16px] align-text-bottom" style="font-variation-settings:'FILL' 1;">star</span> ${s.rating.toFixed(1)}`;
+    document.getElementById('detail-sessions').textContent = s.sessions;
+    document.getElementById('detail-joined').textContent = s.joined;
+    document.getElementById('detail-notes').textContent = s.notes || 'Chưa có ghi chú nào.';
+    
+    document.getElementById('btn-edit-current').onclick = () => openModal('edit', s.id);
+  }
+
+  // --- MODAL LOGIC ---
+  const modal = document.getElementById('student-modal');
+  let currentEditId = null;
+
+  function openModal(mode, id = null) {
+    const form = document.getElementById('student-form');
+    form.reset();
+    
+    if (mode === 'add') {
+      document.getElementById('modal-title').textContent = 'Thêm Học Viên Mới';
+      document.getElementById('student-id').value = '';
+      document.getElementById('delete-btn-container').classList.add('hidden');
+      currentEditId = null;
+    } else {
+      document.getElementById('modal-title').textContent = 'Chỉnh sửa Thông Tin';
+      const student = students.find(s => s.id === id);
+      if(student) {
+        document.getElementById('student-id').value = student.id;
+        document.getElementById('form-name').value = student.name;
+        document.getElementById('form-phone').value = student.phone;
+        document.getElementById('form-level').value = student.level;
+        document.getElementById('form-rating').value = student.rating;
+        document.getElementById('form-notes').value = student.notes;
+        document.getElementById('delete-btn-container').classList.remove('hidden');
+        currentEditId = id;
+      }
+    }
+    
+    modal.classList.remove('hidden');
+  }
+
+  function closeModal() {
+    modal.classList.add('hidden');
+  }
+
+  function saveStudent(e) {
+    e.preventDefault();
+    
+    const id = document.getElementById('student-id').value;
+    
+    // Get today's date formatted as DD/MM/YYYY
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const yyyy = today.getFullYear();
+    const joinedDate = `${dd}/${mm}/${yyyy}`;
+
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+    const newStudent = {
+      id: id ? parseInt(id) : Date.now(),
+      name: document.getElementById('form-name').value,
+      phone: document.getElementById('form-phone').value,
+      level: document.getElementById('form-level').value,
+      rating: parseFloat(document.getElementById('form-rating').value),
+      notes: document.getElementById('form-notes').value,
+      sessions: id ? students.find(s => s.id == id).sessions : 0, // Keep existing sessions or start at 0
+      joined: id ? students.find(s => s.id == id).joined : joinedDate, // Keep existing date
+      color: id ? students.find(s => s.id == id).color : randomColor // Keep existing color
+    };
+
+    if (id) {
+      students = students.map(s => s.id === newStudent.id ? newStudent : s);
+      if(currentSelectedId === newStudent.id) selectStudent(newStudent.id); // Update sidebar if selected
+    } else {
+      students.push(newStudent);
+    }
+
+    localStorage.setItem('coachStudents', JSON.stringify(students));
+    renderStudents();
+    closeModal();
+  }
+
+  function deleteStudent() {
+    if(!currentEditId) return;
+    if(confirm(`Bạn có chắc chắn muốn xóa học viên này?\nLưu ý: Mọi lịch sử và lịch tập liên quan có thể bị ảnh hưởng.`)) {
+      students = students.filter(s => s.id !== currentEditId);
+      localStorage.setItem('coachStudents', JSON.stringify(students));
+      
+      if(currentSelectedId === currentEditId) {
+        currentSelectedId = null;
+        document.getElementById('student-detail-card').classList.add('hidden');
+        document.getElementById('no-student-selected').classList.remove('hidden');
+      }
+      
+      renderStudents();
+      closeModal();
+    }
+  }
+
+</script>
+</body>
+</html>

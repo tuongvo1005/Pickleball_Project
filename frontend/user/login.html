@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Đăng nhập – PickleBall Pro</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          "primary": "#006e1c",
+          "on-primary": "#ffffff",
+          "primary-container": "#4caf50",
+          "on-primary-container": "#003c0b",
+          "surface": "#f5fbef",
+          "surface-variant": "#dee4d9",
+          "surface-container-lowest": "#ffffff",
+          "surface-container-low": "#f0f6ea",
+          "surface-container": "#eaf0e4",
+          "on-surface": "#171d16",
+          "on-surface-variant": "#3f4a3c",
+          "outline": "#6f7a6b",
+          "outline-variant": "#becab9",
+          "inverse-primary": "#78dc77",
+          "surface-tint": "#006e1c",
+          "error": "#ba1a1a",
+          "on-error": "#ffffff",
+          "error-container": "#ffdad6",
+          "secondary": "#5f5e5e",
+          "tertiary": "#a63360",
+        },
+        fontFamily: { sans: ["Lexend", "sans-serif"] },
+        spacing: {
+          xs: "4px", sm: "12px", md: "24px",
+          lg: "40px", xl: "64px", gutter: "24px",
+        },
+        borderRadius: { DEFAULT: "0.25rem", lg: "0.5rem", xl: "0.75rem", full: "9999px" },
+      }
+    }
+  }
+</script>
+<style>
+  * { font-family: 'Lexend', sans-serif; }
+  .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-10px); }
+  }
+  .animate-fade-in-up { animation: fadeInUp 0.6s ease forwards; }
+  .animate-float      { animation: float 4s ease-in-out infinite; }
+
+  .input-field {
+    width: 100%;
+    padding: 14px 16px 14px 48px;
+    border: 1.5px solid #becab9;
+    border-radius: 12px;
+    background: #ffffff;
+    font-size: 16px;
+    color: #171d16;
+    outline: none;
+    transition: all 0.2s;
+  }
+  .input-field:focus {
+    border-color: #006e1c;
+    box-shadow: 0 0 0 3px rgba(0,110,28,0.12);
+  }
+  .input-field.error {
+    border-color: #ba1a1a;
+    box-shadow: 0 0 0 3px rgba(186,26,26,0.12);
+  }
+
+  .btn-primary {
+    width: 100%;
+    padding: 14px;
+    background: #006e1c;
+    color: #fff;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn-primary:hover  { background: #005214; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,110,28,0.3); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .card {
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(20px);
+    border-radius: 24px;
+    border: 1px solid rgba(190,202,185,0.5);
+    box-shadow: 0 24px 64px rgba(0,0,0,0.10);
+  }
+
+  .bg-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.35;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body class="min-h-screen flex items-center justify-center relative overflow-hidden" style="background: linear-gradient(135deg, #e8f5e9 0%, #f5fbef 40%, #c8e6c9 100%);">
+
+  <!-- Background blobs -->
+  <div class="bg-blob w-96 h-96 bg-green-300 -top-24 -left-24" style="position:fixed;"></div>
+  <div class="bg-blob w-80 h-80 bg-emerald-200 bottom-0 right-0" style="position:fixed;"></div>
+  <div class="bg-blob w-64 h-64 bg-lime-200 top-1/2 left-1/3" style="position:fixed;"></div>
+
+  <!-- Floating icon decoration -->
+  <div class="animate-float absolute top-16 right-16 opacity-20 hidden lg:block" style="position:fixed;">
+    <span class="material-symbols-outlined text-primary" style="font-size:80px; font-variation-settings:'FILL' 1;">sports_tennis</span>
+  </div>
+  <div class="animate-float absolute bottom-20 left-16 opacity-15 hidden lg:block" style="position:fixed; animation-delay:1.5s;">
+    <span class="material-symbols-outlined text-primary" style="font-size:56px; font-variation-settings:'FILL' 1;">emoji_events</span>
+  </div>
+
+  <!-- Main card -->
+  <div class="card w-full max-w-md mx-4 p-8 animate-fade-in-up relative z-10">
+
+    <!-- Logo -->
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4" style="background: linear-gradient(135deg, #006e1c, #4caf50);">
+        <span class="material-symbols-outlined text-white" style="font-size:32px; font-variation-settings:'FILL' 1;">sports_tennis</span>
+      </div>
+      <h1 class="text-2xl font-bold text-on-surface tracking-tight">PickleBall Pro</h1>
+      <p class="text-sm text-on-surface-variant mt-1">Đăng nhập để tiếp tục</p>
+    </div>
+
+    <!-- Error message -->
+    <div id="error-box" class="hidden mb-4 p-3 rounded-xl flex items-center gap-2" style="background:#ffdad6;">
+      <span class="material-symbols-outlined text-error text-[18px]">error</span>
+      <p id="error-msg" class="text-sm font-medium" style="color:#ba1a1a;">Sai email hoặc mật khẩu.</p>
+    </div>
+
+    <!-- Form -->
+    <form id="login-form" onsubmit="handleLogin(event)" novalidate>
+
+      <!-- Email -->
+      <div class="mb-4">
+        <label class="block text-xs font-bold tracking-widest text-on-surface-variant mb-2 uppercase">Email</label>
+        <div class="relative">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline" style="font-size:20px; pointer-events:none;">mail</span>
+          <input id="email" type="email" placeholder="you@example.com"
+                 class="input-field"
+                 style="padding-left:48px;"
+                 autocomplete="email"/>
+        </div>
+        <p id="email-error" class="hidden text-xs mt-1" style="color:#ba1a1a;">Vui lòng nhập email hợp lệ.</p>
+      </div>
+
+      <!-- Password -->
+      <div class="mb-2">
+        <label class="block text-xs font-bold tracking-widest text-on-surface-variant mb-2 uppercase">Mật khẩu</label>
+        <div class="relative">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline" style="font-size:20px; pointer-events:none;">lock</span>
+          <input id="password" type="password" placeholder="••••••••"
+                 class="input-field"
+                 style="padding-left:48px; padding-right:48px;"
+                 autocomplete="current-password"/>
+          <button type="button" onclick="togglePassword()" class="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-primary transition-colors">
+            <span id="eye-icon" class="material-symbols-outlined" style="font-size:20px;">visibility</span>
+          </button>
+        </div>
+        <p id="password-error" class="hidden text-xs mt-1" style="color:#ba1a1a;">Vui lòng nhập mật khẩu.</p>
+      </div>
+
+      <!-- Remember + Forgot -->
+      <div class="flex items-center justify-between mb-6">
+        <label class="flex items-center gap-2 cursor-pointer select-none">
+          <input id="remember" type="checkbox" class="w-4 h-4 rounded accent-primary"/>
+          <span class="text-sm text-on-surface-variant">Ghi nhớ đăng nhập</span>
+        </label>
+        <a href="#" class="text-sm font-semibold hover:underline" style="color:#006e1c;">Quên mật khẩu?</a>
+      </div>
+
+      <!-- Submit -->
+      <button type="submit" id="submit-btn" class="btn-primary mb-4">
+        <span class="material-symbols-outlined" style="font-size:20px;">login</span>
+        Đăng nhập
+      </button>
+
+    </form>
+
+    <!-- Divider -->
+    <div class="flex items-center gap-3 mb-4">
+      <div class="flex-1 h-px bg-outline-variant"></div>
+      <span class="text-xs text-outline">HOẶC</span>
+      <div class="flex-1 h-px bg-outline-variant"></div>
+    </div>
+
+    <!-- Demo accounts hint -->
+    <div class="rounded-xl p-4 mb-6" style="background:#eaf0e4; border:1px solid #becab9;">
+      <p class="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Tài khoản demo</p>
+      <div class="space-y-1">
+        <button onclick="fillDemo('admin@pickleballpro.vn','admin123')"
+                class="w-full text-left text-sm py-1.5 px-3 rounded-lg hover:bg-primary-container transition-colors flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary" style="font-size:16px; font-variation-settings:'FILL' 1;">admin_panel_settings</span>
+          <span class="font-medium text-on-surface">Admin</span>
+          <span class="text-outline ml-auto">admin@pickleballpro.vn</span>
+        </button>
+        <button onclick="fillDemo('coach@pickleballpro.vn','coach123')"
+                class="w-full text-left text-sm py-1.5 px-3 rounded-lg hover:bg-primary-container transition-colors flex items-center gap-2">
+          <span class="material-symbols-outlined" style="font-size:16px; font-variation-settings:'FILL' 1; color:#1976d2;">sports_kabaddi</span>
+          <span class="font-medium text-on-surface">Huấn luyện viên</span>
+          <span class="text-outline ml-auto">coach@pickleballpro.vn</span>
+        </button>
+        <button onclick="fillDemo('user@pickleballpro.vn','user123')"
+                class="w-full text-left text-sm py-1.5 px-3 rounded-lg hover:bg-primary-container transition-colors flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary" style="font-size:16px; font-variation-settings:'FILL' 1;">person</span>
+          <span class="font-medium text-on-surface">Người dùng</span>
+          <span class="text-outline ml-auto">user@pickleballpro.vn</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Register link -->
+    <p class="text-center text-sm text-on-surface-variant">
+      Chưa có tài khoản?
+      <a href="register.html" class="font-semibold hover:underline" style="color:#006e1c;">Đăng ký ngay</a>
+    </p>
+
+    <!-- Back to home -->
+    <div class="text-center mt-4">
+      <a href="index.html" class="inline-flex items-center gap-1 text-xs text-outline hover:text-primary transition-colors">
+        <span class="material-symbols-outlined" style="font-size:14px;">arrow_back</span>
+        Quay về trang chủ
+      </a>
+    </div>
+
+  </div>
+
+<script>
+  // Demo accounts
+  const ACCOUNTS = {
+    'admin@pickleballpro.vn': { password: 'admin123', role: 'admin' },
+    'coach@pickleballpro.vn': { password: 'coach123', role: 'coach', name: 'Nguyễn HLV' },
+    'user@pickleballpro.vn':  { password: 'user123',  role: 'user'  },
+  };
+
+  function fillDemo(email, password) {
+    document.getElementById('email').value    = email;
+    document.getElementById('password').value = password;
+    hideErrors();
+  }
+
+  function togglePassword() {
+    const input = document.getElementById('password');
+    const icon  = document.getElementById('eye-icon');
+    if (input.type === 'password') {
+      input.type  = 'text';
+      icon.textContent = 'visibility_off';
+    } else {
+      input.type  = 'password';
+      icon.textContent = 'visibility';
+    }
+  }
+
+  function hideErrors() {
+    document.getElementById('error-box').classList.add('hidden');
+    document.getElementById('email-error').classList.add('hidden');
+    document.getElementById('password-error').classList.add('hidden');
+    document.getElementById('email').classList.remove('error');
+    document.getElementById('password').classList.remove('error');
+  }
+
+  function handleLogin(e) {
+    e.preventDefault();
+    hideErrors();
+
+    const email    = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const btn      = document.getElementById('submit-btn');
+
+    // Validate
+    let valid = true;
+    if (!email || !/\S+@\S+\.\S+/.test(email)) {
+      document.getElementById('email').classList.add('error');
+      document.getElementById('email-error').classList.remove('hidden');
+      valid = false;
+    }
+    if (!password) {
+      document.getElementById('password').classList.add('error');
+      document.getElementById('password-error').classList.remove('hidden');
+      valid = false;
+    }
+    if (!valid) return;
+
+    // Loading state
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-symbols-outlined animate-spin" style="font-size:20px;">autorenew</span> Đang đăng nhập...';
+
+    setTimeout(() => {
+      const account = ACCOUNTS[email];
+      if (account && account.password === password) {
+        // Success
+        btn.style.background = '#4caf50';
+        btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:20px;">check_circle</span> Thành công!';
+        setTimeout(() => {
+          localStorage.setItem('pickleballUser', JSON.stringify({ role: account.role, email: email, name: account.name || '' }));
+          if (account.role === 'admin') {
+            window.location.href = '../admin/index.html';
+          } else if (account.role === 'coach') {
+            window.location.href = '../coach/index.html';
+          } else {
+            window.location.href = 'index.html';
+          }
+        }, 800);
+      } else {
+        // Failure
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:20px;">login</span> Đăng nhập';
+        document.getElementById('error-box').classList.remove('hidden');
+        document.getElementById('email').classList.add('error');
+        document.getElementById('password').classList.add('error');
+        // Shake animation
+        const card = document.querySelector('.card');
+        card.style.animation = 'shake 0.4s ease';
+        setTimeout(() => card.style.animation = '', 400);
+      }
+    }, 900);
+  }
+</script>
+
+<style>
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%       { transform: translateX(-8px); }
+    40%       { transform: translateX(8px); }
+    60%       { transform: translateX(-5px); }
+    80%       { transform: translateX(5px); }
+  }
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+  .animate-spin { animation: spin 1s linear infinite; }
+</style>
+
+</body>
+</html>

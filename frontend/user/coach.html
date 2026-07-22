@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Huấn Luyện Viên - PickleBall Pro</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#006e1c",
+                        "on-primary": "#ffffff",
+                        "primary-container": "#4caf50",
+                        "on-primary-container": "#003c0b",
+                        "surface": "#f5fbef",
+                        "surface-variant": "#dee4d9",
+                        "surface-container": "#eaf0e4",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface": "#171d16",
+                        "on-surface-variant": "#3f4a3c",
+                        "outline": "#6f7a6b",
+                        "outline-variant": "#becab9",
+                        "error": "#ba1a1a",
+                        "inverse-primary": "#78dc77",
+                        "secondary": "#5f5e5e",
+                        "tertiary": "#a63360",
+                        "surface-tint": "#006e1c",
+                    },
+                    spacing: {
+                        "lg": "40px",
+                        "gutter": "24px",
+                        "xl": "64px",
+                        "xs": "4px",
+                        "md": "24px",
+                        "base": "8px",
+                        "sm": "12px",
+                        "container-max": "1280px"
+                    },
+                    fontFamily: {
+                        "h1": ["Lexend"],
+                        "body-md": ["Lexend"],
+                        "label-caps": ["Lexend"],
+                        "h3": ["Lexend"],
+                        "body-lg": ["Lexend"],
+                        "h2": ["Lexend"],
+                        "display": ["Lexend"],
+                        "button": ["Lexend"],
+                        "body-sm": ["Lexend"]
+                    },
+                    fontSize: {
+                        "h1": ["32px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                        "h2": ["24px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                        "h3": ["20px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "button": ["16px", {"lineHeight": "1", "fontWeight": "600"}],
+                        "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Lexend', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        
+        .avatar-gradient {
+            background: linear-gradient(135deg, #eaf0e4 0%, #c8e6c9 100%);
+        }
+    </style>
+</head>
+<body class="bg-[#f5fbef] text-[#171d16] min-h-screen flex flex-col">
+
+<!-- TopAppBar Component -->
+<header class="bg-surface border-b border-outline-variant shadow-sm sticky top-0 z-50">
+<div class="flex justify-between items-center px-gutter py-sm max-w-container-max mx-auto w-full">
+<div class="text-h2 font-h2 text-primary tracking-tight flex items-center gap-2">
+    <span class="material-symbols-outlined text-[28px]" style='font-variation-settings: "FILL" 1;'>sports_tennis</span>
+    PickleBall Pro
+</div>
+<nav class="hidden md:flex gap-md items-center">
+    <a class="text-on-surface-variant font-body-md hover:text-primary transition-colors duration-200 active:scale-95 transition-transform" href="index.html">Trang chủ</a>
+    <a class="text-on-surface-variant font-body-md hover:text-primary transition-colors duration-200 active:scale-95 transition-transform" href="courts.html">Tìm sân</a>
+    <a class="text-on-surface-variant font-body-md hover:text-primary transition-colors duration-200 active:scale-95 transition-transform" href="shop.html">Dụng cụ</a>
+    <a class="text-on-surface-variant font-body-md hover:text-primary transition-colors duration-200 active:scale-95 transition-transform" href="tournament.html">Giải đấu</a>
+    <a class="text-primary border-b-2 border-primary pb-1 font-bold active:scale-95 transition-transform" href="coach.html">Huấn luyện viên</a>
+    <a class="text-on-surface-variant font-body-md hover:text-primary transition-colors duration-200 active:scale-95 transition-transform" href="review.html">Đánh giá</a>
+    <a class="text-on-surface-variant font-body-md hover:text-primary transition-colors duration-200 active:scale-95 transition-transform" href="profile.html">Hồ sơ</a>
+</nav>
+<div class="flex items-center gap-sm" id="auth-container">
+    <a href="courts.html" class="bg-primary text-on-primary text-button font-button px-md py-sm rounded-full active:scale-95 transition-transform hover:bg-surface-tint inline-block shadow-md">Đặt ngay</a>
+    <a id="login-btn" href="login.html" class="flex items-center gap-xs bg-primary text-on-primary text-button font-button px-md py-sm rounded-full active:scale-95 transition-transform hover:bg-surface-tint shadow-md">
+      <span class="material-symbols-outlined text-[18px]">login</span>
+      Đăng nhập
+    </a>
+</div>
+</div>
+</header>
+
+<!-- Main Content -->
+<main class="flex-grow max-w-[1280px] mx-auto px-6 py-10 w-full">
+
+    <!-- Hero Section -->
+    <div class="bg-[#006e1c] rounded-3xl p-8 md:p-12 mb-10 text-white relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-8 shadow-lg">
+        <!-- Blobs for decoration -->
+        <div class="absolute w-64 h-64 bg-[#4caf50] rounded-full blur-3xl opacity-30 top-[-50px] left-[-50px] pointer-events-none"></div>
+        <div class="absolute w-80 h-80 bg-[#78dc77] rounded-full blur-3xl opacity-20 bottom-[-100px] right-[-50px] pointer-events-none"></div>
+        
+        <div class="relative z-10 md:w-2/3">
+            <span class="inline-block bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full mb-4 uppercase tracking-wider backdrop-blur-sm">Chuyên gia Pickleball</span>
+            <h1 class="text-4xl md:text-5xl font-bold mb-4 leading-tight">Tìm Huấn Luyện Viên Tốt Nhất Cho Bạn</h1>
+            <p class="text-lg text-white/90 mb-6 max-w-xl">Cải thiện kỹ năng, nắm vững chiến thuật và nâng tầm trận đấu của bạn cùng đội ngũ huấn luyện viên chuyên nghiệp được chứng nhận.</p>
+            <button class="bg-white text-[#006e1c] px-6 py-3 rounded-full font-bold hover:bg-[#eaf0e4] transition-colors shadow-md active:scale-95 flex items-center gap-2">
+                Tìm HLV Gần Bạn <span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">arrow_forward</span>
+            </button>
+        </div>
+        
+        <div class="relative z-10 hidden md:flex items-center justify-center">
+            <!-- Decorative icon compilation -->
+            <div class="relative">
+                <div class="w-48 h-48 rounded-full border-4 border-white/20 flex items-center justify-center bg-white/10 backdrop-blur-sm">
+                    <span class="material-symbols-outlined text-white text-[100px]">sports_kabaddi</span>
+                </div>
+                <div class="absolute -bottom-4 -right-4 w-20 h-20 rounded-full bg-white flex items-center justify-center shadow-xl">
+                    <span class="material-symbols-outlined text-[#a63360] text-[40px]">star</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters & Search -->
+    <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8 bg-white p-4 rounded-2xl border border-[#becab9] shadow-sm">
+        <div class="flex flex-wrap gap-2 w-full md:w-auto" id="cat-filters">
+            <button class="cat-btn px-5 py-2.5 rounded-full text-sm font-semibold bg-[#006e1c] text-white" data-cat="all">Tất cả</button>
+            <button class="cat-btn px-5 py-2.5 rounded-full text-sm font-semibold bg-[#eaf0e4] text-[#3f4a3c] hover:bg-[#006e1c] hover:text-white transition-colors" data-cat="beginner">Người mới</button>
+            <button class="cat-btn px-5 py-2.5 rounded-full text-sm font-semibold bg-[#eaf0e4] text-[#3f4a3c] hover:bg-[#006e1c] hover:text-white transition-colors" data-cat="advanced">Nâng cao</button>
+            <button class="cat-btn px-5 py-2.5 rounded-full text-sm font-semibold bg-[#eaf0e4] text-[#3f4a3c] hover:bg-[#006e1c] hover:text-white transition-colors" data-cat="kids">Trẻ em</button>
+        </div>
+        
+        <div class="flex w-full md:w-auto gap-3">
+            <div class="relative flex-grow md:w-64">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7a6b]" style="font-variation-settings: 'FILL' 0;">search</span>
+                <input type="text" id="coach-search" placeholder="Tên HLV, kỹ năng..." class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#becab9] text-sm focus:border-[#006e1c] outline-none bg-[#f5fbef] transition-colors"/>
+            </div>
+            <select id="district-filter" class="px-4 py-2.5 rounded-xl border border-[#becab9] text-sm focus:border-[#006e1c] outline-none bg-white text-[#3f4a3c] cursor-pointer">
+                <option value="all">Tất cả khu vực</option>
+                <option value="q7">Quận 7</option>
+                <option value="q1">Quận 1</option>
+                <option value="thuduc">Thủ Đức</option>
+                <option value="q10">Quận 10</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Coaches Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+
+        <!-- Coach Card 1 -->
+        <div class="coach-card bg-white rounded-2xl border border-[#becab9] shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden flex flex-col" data-cat="beginner" data-district="q7" data-name="nguyễn văn a" data-price="350000">
+            <div class="p-6 pb-0 flex gap-5 items-start">
+                <div class="w-24 h-24 rounded-full avatar-gradient flex-shrink-0 flex items-center justify-center border-4 border-white shadow-md relative">
+                    <span class="material-symbols-outlined text-[#006e1c] text-[48px]">person</span>
+                    <span class="absolute bottom-0 right-0 w-6 h-6 bg-[#4caf50] border-2 border-white rounded-full" title="Đang online"></span>
+                </div>
+                <div>
+                    <div class="flex justify-between items-start">
+                        <h3 class="text-xl font-bold text-[#171d16] mb-1">Nguyễn Văn A</h3>
+                        <div class="flex items-center bg-[#fff8e1] text-[#f57f17] px-2 py-0.5 rounded text-xs font-bold border border-[#ffe082]">
+                            <span class="material-symbols-outlined text-[14px] mr-0.5">star</span> 4.9
+                        </div>
+                    </div>
+                    <p class="text-sm font-medium text-[#006e1c] mb-2">Chuyên gia kỹ thuật - VPA Pro</p>
+                    <div class="flex items-center text-xs text-[#5f5e5e] gap-4">
+                        <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]" style="font-variation-settings:'FILL' 0;">history</span> 5 năm K/N</span>
+                        <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]" style="font-variation-settings:'FILL' 0;">group</span> 120+ Học viên</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-6 flex-grow">
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <span class="bg-[#eaf0e4] text-[#003c0b] text-xs px-2.5 py-1 rounded-md font-medium">Người mới</span>
+                    <span class="bg-[#eaf0e4] text-[#003c0b] text-xs px-2.5 py-1 rounded-md font-medium">Chiến thuật đôi</span>
+                    <span class="bg-[#eaf0e4] text-[#003c0b] text-xs px-2.5 py-1 rounded-md font-medium">Sửa lỗi giao bóng</span>
+                </div>
+                <p class="text-sm text-[#3f4a3c] line-clamp-3 leading-relaxed mb-4">
+                    "Tập trung vào nền tảng cơ bản vững chắc trước khi xây dựng lối chơi tấn công. Phương pháp huấn luyện của tôi giúp bạn đánh bóng ổn định và hiểu rõ cách di chuyển trên sân."
+                </p>
+            </div>
+            
+            <div class="px-6 py-4 border-t border-[#becab9] bg-[#f5fbef] flex items-center justify-between mt-auto">
+                <div>
+                    <p class="text-xs text-[#5f5e5e] mb-0.5">Mức phí</p>
+                    <p class="text-lg font-bold text-[#171d16]">350.000₫ <span class="text-sm font-normal text-[#6f7a6b]">/ giờ</span></p>
+                </div>
+                <div class="flex gap-2">
+                    <button class="view-btn border border-[#006e1c] text-[#006e1c] px-3 py-2.5 rounded-xl font-semibold hover:bg-[#eaf0e4] transition-colors active:scale-95" data-coach="0"><span class="material-symbols-outlined text-[18px]">person_search</span></button>
+                    <button class="book-btn bg-[#006e1c] text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-[#005313] transition-colors shadow active:scale-95 flex items-center gap-2" data-coach="0">
+                        <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 0;">calendar_month</span> Đặt lịch
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coach Card 2 -->
+        <div class="coach-card bg-white rounded-2xl border border-[#becab9] shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden flex flex-col" data-cat="advanced kids" data-district="q1" data-name="trần thị b" data-price="300000">
+            <div class="p-6 pb-0 flex gap-5 items-start">
+                <div class="w-24 h-24 rounded-full bg-[#fce4ec] flex-shrink-0 flex items-center justify-center border-4 border-white shadow-md relative">
+                    <span class="material-symbols-outlined text-[#c2185b] text-[48px]">face_3</span>
+                </div>
+                <div>
+                    <div class="flex justify-between items-start">
+                        <h3 class="text-xl font-bold text-[#171d16] mb-1">Trần Thị B</h3>
+                        <div class="flex items-center bg-[#fff8e1] text-[#f57f17] px-2 py-0.5 rounded text-xs font-bold border border-[#ffe082]">
+                            <span class="material-symbols-outlined text-[14px] mr-0.5">star</span> 5.0
+                        </div>
+                    </div>
+                    <p class="text-sm font-medium text-[#c2185b] mb-2">Huấn luyện viên Nâng cao</p>
+                    <div class="flex items-center text-xs text-[#5f5e5e] gap-4">
+                        <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]" style="font-variation-settings:'FILL' 0;">history</span> 3 năm K/N</span>
+                        <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]" style="font-variation-settings:'FILL' 0;">group</span> 85+ Học viên</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-6 flex-grow">
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <span class="bg-[#fce4ec] text-[#880e4f] text-xs px-2.5 py-1 rounded-md font-medium">Đánh đơn</span>
+                    <span class="bg-[#fce4ec] text-[#880e4f] text-xs px-2.5 py-1 rounded-md font-medium">Nâng cao thể lực</span>
+                    <span class="bg-[#fce4ec] text-[#880e4f] text-xs px-2.5 py-1 rounded-md font-medium">Trẻ em</span>
+                </div>
+                <p class="text-sm text-[#3f4a3c] line-clamp-3 leading-relaxed mb-4">
+                    "Pickleball không chỉ là kỹ năng mà còn là niềm vui. Tôi thiết kế các bài tập năng động, rèn luyện phản xạ nhanh và sự linh hoạt để phù hợp với người chơi mọi lứa tuổi."
+                </p>
+            </div>
+            
+            <div class="px-6 py-4 border-t border-[#becab9] bg-[#f5fbef] flex items-center justify-between mt-auto">
+                <div>
+                    <p class="text-xs text-[#5f5e5e] mb-0.5">Mức phí</p>
+                    <p class="text-lg font-bold text-[#171d16]">300.000₫ <span class="text-sm font-normal text-[#6f7a6b]">/ giờ</span></p>
+                </div>
+                <div class="flex gap-2">
+                    <button class="view-btn border border-[#006e1c] text-[#006e1c] px-3 py-2.5 rounded-xl font-semibold hover:bg-[#eaf0e4] transition-colors active:scale-95" data-coach="1"><span class="material-symbols-outlined text-[18px]">person_search</span></button>
+                    <button class="book-btn bg-[#006e1c] text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-[#005313] transition-colors shadow active:scale-95 flex items-center gap-2" data-coach="1">
+                        <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 0;">calendar_month</span> Đặt lịch
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coach Card 3 -->
+        <div class="coach-card bg-white rounded-2xl border border-[#becab9] shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden flex flex-col" data-cat="advanced" data-district="thuduc" data-name="lê hoàng c" data-price="500000">
+            <div class="p-6 pb-0 flex gap-5 items-start">
+                <div class="w-24 h-24 rounded-full bg-[#e3f2fd] flex-shrink-0 flex items-center justify-center border-4 border-white shadow-md relative">
+                    <span class="material-symbols-outlined text-[#1976d2] text-[48px]">person</span>
+                    <span class="absolute bottom-0 right-0 w-6 h-6 bg-[#4caf50] border-2 border-white rounded-full" title="Đang online"></span>
+                </div>
+                <div>
+                    <div class="flex justify-between items-start">
+                        <h3 class="text-xl font-bold text-[#171d16] mb-1">Lê Hoàng C</h3>
+                        <div class="flex items-center bg-[#fff8e1] text-[#f57f17] px-2 py-0.5 rounded text-xs font-bold border border-[#ffe082]">
+                            <span class="material-symbols-outlined text-[14px] mr-0.5">star</span> 4.8
+                        </div>
+                    </div>
+                    <p class="text-sm font-medium text-[#1976d2] mb-2">Cựu VĐV Chuyên nghiệp</p>
+                    <div class="flex items-center text-xs text-[#5f5e5e] gap-4">
+                        <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]" style="font-variation-settings:'FILL' 0;">history</span> 8 năm K/N</span>
+                        <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]" style="font-variation-settings:'FILL' 0;">group</span> 200+ Học viên</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-6 flex-grow">
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <span class="bg-[#e3f2fd] text-[#0d47a1] text-xs px-2.5 py-1 rounded-md font-medium">Cấp độ giải đấu</span>
+                    <span class="bg-[#e3f2fd] text-[#0d47a1] text-xs px-2.5 py-1 rounded-md font-medium">Kiểm soát tâm lý</span>
+                    <span class="bg-[#e3f2fd] text-[#0d47a1] text-xs px-2.5 py-1 rounded-md font-medium">Kỹ thuật dink</span>
+                </div>
+                <p class="text-sm text-[#3f4a3c] line-clamp-3 leading-relaxed mb-4">
+                    "Kinh nghiệm thi đấu đỉnh cao giúp tôi nhìn ra điểm yếu của học viên cực nhanh. Tôi chuyên đạo tạo tay vợt thi đấu phong trào và bán chuyên nghiệp muốn bứt phá thành tích."
+                </p>
+            </div>
+            
+            <div class="px-6 py-4 border-t border-[#becab9] bg-[#f5fbef] flex items-center justify-between mt-auto">
+                <div>
+                    <p class="text-xs text-[#5f5e5e] mb-0.5">Mức phí</p>
+                    <p class="text-lg font-bold text-[#171d16]">500.000₫ <span class="text-sm font-normal text-[#6f7a6b]">/ giờ</span></p>
+                </div>
+                <div class="flex gap-2">
+                    <button class="view-btn border border-[#006e1c] text-[#006e1c] px-3 py-2.5 rounded-xl font-semibold hover:bg-[#eaf0e4] transition-colors active:scale-95" data-coach="2"><span class="material-symbols-outlined text-[18px]">person_search</span></button>
+                    <button class="book-btn bg-[#006e1c] text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-[#005313] transition-colors shadow active:scale-95 flex items-center gap-2" data-coach="2">
+                        <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 0;">calendar_month</span> Đặt lịch
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    
+    <!-- Pagination -->
+    <div class="flex justify-center mt-10 gap-2">
+        <button class="w-10 h-10 rounded-full flex items-center justify-center border border-[#becab9] text-[#6f7a6b] hover:bg-[#eaf0e4] hover:text-[#006e1c] transition-colors" disabled>
+            <span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">chevron_left</span>
+        </button>
+        <button class="w-10 h-10 rounded-full flex items-center justify-center bg-[#006e1c] text-white font-bold shadow-md">1</button>
+        <button class="w-10 h-10 rounded-full flex items-center justify-center border border-[#becab9] text-[#3f4a3c] hover:bg-[#eaf0e4] hover:text-[#006e1c] transition-colors font-semibold">2</button>
+        <button class="w-10 h-10 rounded-full flex items-center justify-center border border-[#becab9] text-[#3f4a3c] hover:bg-[#eaf0e4] hover:text-[#006e1c] transition-colors font-semibold">3</button>
+        <button class="w-10 h-10 rounded-full flex items-center justify-center border border-[#becab9] text-[#3f4a3c] hover:bg-[#eaf0e4] hover:text-[#006e1c] transition-colors">
+            <span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">chevron_right</span>
+        </button>
+    </div>
+
+</main>
+
+<!-- Coach Detail Modal -->
+<div id="coach-detail-modal" class="fixed inset-0 bg-black/60 z-[60] hidden flex justify-center items-center backdrop-blur-sm p-4">
+    <div class="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+        <div id="detail-header" class="p-6 bg-[#006e1c] text-white flex gap-5 items-center relative">
+            <div class="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                <span id="detail-avatar" class="material-symbols-outlined text-white text-[48px]">person</span>
+            </div>
+            <div>
+                <h2 id="detail-name" class="text-2xl font-bold"></h2>
+                <p id="detail-title-sub" class="text-white/80 text-sm"></p>
+                <div id="detail-rating" class="flex items-center gap-1 mt-1 text-[#ffeb3b] text-sm font-bold"></div>
+            </div>
+            <button onclick="document.getElementById('coach-detail-modal').classList.add('hidden')" class="absolute top-4 right-4 text-white/70 hover:text-white">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <div class="p-6 overflow-y-auto space-y-4">
+            <div class="grid grid-cols-2 gap-3 text-sm">
+                <div class="bg-[#f5fbef] p-3 rounded-xl"><p class="text-xs text-[#5f5e5e] mb-1">Kinh nghiệm</p><p id="detail-exp" class="font-bold text-[#171d16]"></p></div>
+                <div class="bg-[#f5fbef] p-3 rounded-xl"><p class="text-xs text-[#5f5e5e] mb-1">Học viên</p><p id="detail-students" class="font-bold text-[#171d16]"></p></div>
+                <div class="bg-[#f5fbef] p-3 rounded-xl"><p class="text-xs text-[#5f5e5e] mb-1">Khu vực</p><p id="detail-district" class="font-bold text-[#171d16]"></p></div>
+                <div class="bg-[#f5fbef] p-3 rounded-xl"><p class="text-xs text-[#5f5e5e] mb-1">Mức phí</p><p id="detail-price" class="font-bold text-[#006e1c]"></p></div>
+            </div>
+            <div>
+                <p class="text-xs font-bold text-[#3f4a3c] uppercase mb-2">Chuyên môn</p>
+                <div id="detail-tags" class="flex flex-wrap gap-2"></div>
+            </div>
+            <div>
+                <p class="text-xs font-bold text-[#3f4a3c] uppercase mb-2">Giới thiệu</p>
+                <p id="detail-bio" class="text-sm text-[#3f4a3c] leading-relaxed"></p>
+            </div>
+        </div>
+        <div class="p-6 border-t border-[#becab9] bg-[#f5fbef] flex gap-3">
+            <button onclick="document.getElementById('coach-detail-modal').classList.add('hidden')" class="flex-1 py-3 rounded-xl border border-[#becab9] font-bold text-[#3f4a3c] hover:bg-[#dee4d9]">Quay lại</button>
+            <button id="detail-book-btn" class="flex-1 py-3 rounded-xl bg-[#006e1c] text-white font-bold hover:bg-[#005313] shadow">Đặt lịch ngay</button>
+        </div>
+    </div>
+</div>
+
+<!-- Booking Modal -->
+<div id="booking-modal" class="fixed inset-0 bg-black/60 z-[70] hidden flex justify-center items-center backdrop-blur-sm p-4">
+    <div class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col">
+        <div class="p-6 bg-[#006e1c] text-white text-center relative">
+            <span class="material-symbols-outlined text-[48px] mb-2">calendar_month</span>
+            <h2 class="text-2xl font-bold">Đặt lịch HLV</h2>
+            <p id="booking-coach-name" class="text-white/80 text-sm mt-1"></p>
+            <button onclick="document.getElementById('booking-modal').classList.add('hidden')" class="absolute top-4 right-4 text-white/70 hover:text-white">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <div class="p-6 space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-[#3f4a3c] uppercase mb-2">Ngày tập <span class="text-[#ba1a1a]">*</span></label>
+                <input type="date" id="book-date" class="w-full px-4 py-3 rounded-xl border border-[#becab9] focus:border-[#006e1c] outline-none bg-[#f5fbef]"/>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-[#3f4a3c] uppercase mb-2">Giờ bắt đầu <span class="text-[#ba1a1a]">*</span></label>
+                <select id="book-time" class="w-full px-4 py-3 rounded-xl border border-[#becab9] focus:border-[#006e1c] outline-none bg-[#f5fbef]">
+                    <option>07:00</option><option>08:00</option><option>09:00</option>
+                    <option>10:00</option><option>15:00</option><option>16:00</option>
+                    <option>17:00</option><option>18:00</option><option>19:00</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-[#3f4a3c] uppercase mb-2">Số giờ</label>
+                <select id="book-hours" class="w-full px-4 py-3 rounded-xl border border-[#becab9] focus:border-[#006e1c] outline-none bg-[#f5fbef]">
+                    <option value="1">1 giờ</option><option value="1.5">1.5 giờ</option><option value="2">2 giờ</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-[#3f4a3c] uppercase mb-2">Ghi chú</label>
+                <textarea id="book-note" rows="2" placeholder="Trình độ hiện tại, mục tiêu..." class="w-full px-4 py-3 rounded-xl border border-[#becab9] focus:border-[#006e1c] outline-none bg-[#f5fbef] resize-none text-sm"></textarea>
+            </div>
+            <div class="bg-[#eaf0e4] p-3 rounded-xl flex justify-between items-center">
+                <span class="text-sm font-semibold text-[#3f4a3c]">Dự kiến thanh toán:</span>
+                <span id="book-total" class="font-bold text-[#006e1c] text-lg">350.000₫</span>
+            </div>
+        </div>
+        <div class="p-6 bg-[#f5fbef] border-t border-[#becab9] flex gap-3">
+            <button onclick="document.getElementById('booking-modal').classList.add('hidden')" class="flex-1 py-3 rounded-xl border border-[#becab9] font-bold text-[#3f4a3c] hover:bg-[#dee4d9]">Hủy</button>
+            <button id="confirm-book-btn" onclick="confirmBooking()" class="flex-1 py-3 rounded-xl bg-[#006e1c] text-white font-bold hover:bg-[#005313] shadow">Xác nhận</button>
+        </div>
+    </div>
+</div>
+
+
+<footer class="bg-[#dee4d9] border-t border-[#becab9] w-full mt-auto">
+    <div class="max-w-[1280px] mx-auto px-6 py-12 flex flex-col md:flex-row justify-between items-start gap-8">
+        <!-- Brand -->
+        <div>
+            <div class="text-xl font-bold text-[#171d16] mb-2">PickleBall Pro</div>
+            <p class="text-sm text-[#5f5e5e] mb-4">Kết nối đam mê, dễ dàng đặt sân<br/>và tìm chuyên gia ngay hôm nay.</p>
+            <p class="text-sm text-[#5f5e5e]">© 2026 PickleBall Pro. All rights reserved.</p>
+        </div>
+        <!-- Links -->
+        <div class="flex flex-col md:flex-row gap-8">
+            <div>
+                <p class="text-xs font-bold text-[#3f4a3c] uppercase tracking-widest mb-3">Dịch vụ</p>
+                <nav class="flex flex-col gap-2">
+                    <a href="index.html" class="text-sm text-[#5f5e5e] hover:text-[#006e1c] transition-colors">Trang chủ</a>
+                    <a href="#" class="text-sm text-[#5f5e5e] hover:text-[#006e1c] transition-colors">Tìm sân</a>
+                    <a href="shop.html" class="text-sm text-[#5f5e5e] hover:text-[#006e1c] transition-colors">Dụng cụ</a>
+                    <a href="coach.html" class="text-sm text-[#006e1c] font-medium transition-colors">Huấn luyện viên</a>
+                </nav>
+            </div>
+            <div>
+                <p class="text-xs font-bold text-[#3f4a3c] uppercase tracking-widest mb-3">Hỗ trợ</p>
+                <nav class="flex flex-col gap-2">
+                    <a href="#" class="text-sm text-[#5f5e5e] hover:text-[#006e1c] transition-colors">Chính sách bảo mật</a>
+                    <a href="#" class="text-sm text-[#5f5e5e] hover:text-[#006e1c] transition-colors">Điều khoản dịch vụ</a>
+                    <a href="#" class="text-sm text-[#5f5e5e] hover:text-[#006e1c] transition-colors">Liên hệ</a>
+                </nav>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script>
+    const COACHES = [
+        { name: 'Nguyễn Văn A', title: 'Chuyên gia kỹ thuật - VPA Pro', rating: '4.9', exp: '5 năm', students: '120+', district: 'Quận 7', price: 350000, avatar: 'person', tags: ['Người mới', 'Chiến thuật đôi', 'Sửa lỗi giao bóng'], bio: 'Tập trung vào nền tảng cơ bản vững chắc trước khi xây dựng lối chơi tấn công. Phương pháp huấn luyện của tôi giúp bạn đánh bóng ổn định và hiểu rõ cách di chuyển trên sân.' },
+        { name: 'Trần Thị B', title: 'Huấn luyện viên Nâng cao', rating: '5.0', exp: '3 năm', students: '85+', district: 'Quận 1', price: 300000, avatar: 'face_3', tags: ['Đánh đơn', 'Nâng cao thể lực', 'Trẻ em'], bio: 'Pickleball không chỉ là kỹ năng mà còn là niềm vui. Tôi thiết kế các bài tập năng động, rèn luyện phản xạ nhanh và sự linh hoạt phù hợp với mọi lứa tuổi.' },
+        { name: 'Lê Hoàng C', title: 'Cựu VĐV Chuyên nghiệp', rating: '4.8', exp: '8 năm', students: '200+', district: 'Thủ Đức', price: 500000, avatar: 'person', tags: ['Cấp độ giải đấu', 'Kiểm soát tâm lý', 'Kỹ thuật dink'], bio: 'Kinh nghiệm thi đấu đỉnh cao giúp tôi nhìn ra điểm yếu của học viên cực nhanh. Tôi chuyên đào tạo tay vợt thi đấu phiên trào muốn bứt phá thành tích.' }
+    ];
+
+    let currentCat = 'all';
+    let currentDistrict = 'all';
+    let currentCoachIdx = 0;
+
+    function formatPrice(p) { return p.toLocaleString('vi-VN') + '₫'; }
+
+    function applyCoachFilters() {
+        const query = (document.getElementById('coach-search').value || '').toLowerCase();
+        document.querySelectorAll('.coach-card').forEach(card => {
+            const name = (card.dataset.name || '').toLowerCase();
+            const cats = (card.dataset.cat || '').split(' ');
+            const dist = card.dataset.district || '';
+            const matchCat = currentCat === 'all' || cats.includes(currentCat);
+            const matchDist = currentDistrict === 'all' || dist === currentDistrict;
+            const matchSearch = name.includes(query);
+            card.style.display = (matchCat && matchDist && matchSearch) ? 'flex' : 'none';
+        });
+    }
+
+    function openBooking(idx) {
+        if (!localStorage.getItem('pickleballUser')) {
+            alert('Vui lòng đăng nhập để đặt lịch HLV!');
+            window.location.href = 'login.html'; return;
+        }
+        currentCoachIdx = idx;
+        const c = COACHES[idx];
+        document.getElementById('booking-coach-name').textContent = c.name + ' — ' + formatPrice(c.price) + ' / giờ';
+        document.getElementById('book-total').textContent = formatPrice(c.price);
+        // Reset button state every time modal opens
+        const btn = document.getElementById('confirm-book-btn');
+        btn.innerHTML = 'Xác nhận';
+        btn.disabled = false;
+        document.getElementById('booking-modal').classList.remove('hidden');
+        document.getElementById('book-hours').onchange = function() {
+            document.getElementById('book-total').textContent = formatPrice(c.price * parseFloat(this.value));
+        };
+    }
+
+    function confirmBooking() {
+        const date = document.getElementById('book-date').value;
+        const time = document.getElementById('book-time').value;
+        if (!date) { alert('Vui lòng chọn ngày tập!'); return; }
+        const btn = document.getElementById('confirm-book-btn');
+        btn.innerHTML = '<span class="material-symbols-outlined animate-spin text-[18px]">autorenew</span> Đang xử lý...';
+        btn.disabled = true;
+        setTimeout(() => {
+            alert(`Đặt lịch thành công!\nHLV: ${COACHES[currentCoachIdx].name}\nNgày: ${date} lúc ${time}\nBan tổ chức sẽ liên hệ xác nhận sớm nhất.`);
+            document.getElementById('booking-modal').classList.add('hidden');
+            btn.innerHTML = 'Xác nhận';
+            btn.disabled = false;
+        }, 1500);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Category filter
+        document.querySelectorAll('.cat-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentCat = btn.dataset.cat;
+                document.querySelectorAll('.cat-btn').forEach(b => {
+                    b.classList.toggle('bg-[#006e1c]', b === btn);
+                    b.classList.toggle('text-white', b === btn);
+                    b.classList.toggle('bg-[#eaf0e4]', b !== btn);
+                    b.classList.toggle('text-[#3f4a3c]', b !== btn);
+                });
+                applyCoachFilters();
+            });
+        });
+
+        // Search & district filter
+        document.getElementById('coach-search').addEventListener('input', applyCoachFilters);
+        document.getElementById('district-filter').addEventListener('change', (e) => {
+            currentDistrict = e.target.value;
+            applyCoachFilters();
+        });
+
+        // View detail buttons
+        document.querySelectorAll('.view-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const idx = parseInt(btn.dataset.coach);
+                const c = COACHES[idx];
+                document.getElementById('detail-name').textContent = c.name;
+                document.getElementById('detail-title-sub').textContent = c.title;
+                document.getElementById('detail-rating').innerHTML = '★ ' + c.rating + ' / 5.0';
+                document.getElementById('detail-avatar').textContent = c.avatar;
+                document.getElementById('detail-exp').textContent = c.exp;
+                document.getElementById('detail-students').textContent = c.students + ' học viên';
+                document.getElementById('detail-district').textContent = c.district;
+                document.getElementById('detail-price').textContent = formatPrice(c.price) + ' / giờ';
+                document.getElementById('detail-bio').textContent = c.bio;
+                const tagsEl = document.getElementById('detail-tags');
+                tagsEl.innerHTML = c.tags.map(t => `<span class="bg-[#eaf0e4] text-[#003c0b] text-xs px-2.5 py-1 rounded-md font-medium">${t}</span>`).join('');
+                document.getElementById('detail-book-btn').onclick = () => {
+                    document.getElementById('coach-detail-modal').classList.add('hidden');
+                    openBooking(idx);
+                };
+                document.getElementById('coach-detail-modal').classList.remove('hidden');
+            });
+        });
+
+        // Book buttons
+        document.querySelectorAll('.book-btn').forEach(btn => {
+            btn.addEventListener('click', () => openBooking(parseInt(btn.dataset.coach)));
+        });
+
+        // Hero "Tìm HLV gần bạn" scrolls to filters
+        document.querySelector('.bg-white.text-[#006e1c]') && 
+            document.querySelector('.bg-white.text-[#006e1c]').addEventListener('click', () => {
+                document.getElementById('coach-search').focus();
+                document.getElementById('coach-search').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+
+        // Confirm booking - handled via onclick on button directly
+
+        // Auth header
+        const userJson = localStorage.getItem('pickleballUser');
+        if (userJson) {
+            try {
+                const user = JSON.parse(userJson);
+                const authContainer = document.getElementById('auth-container');
+                if (authContainer) {
+                    const loginBtn = document.getElementById('login-btn');
+                    if (loginBtn) loginBtn.remove();
+                    authContainer.insertAdjacentHTML('beforeend', `
+                        <div class="relative group ml-1">
+                            <button class="w-10 h-10 rounded-full bg-[#4caf50] text-[#003c0b] flex items-center justify-center border border-[#006e1c] overflow-hidden hover:opacity-80 transition-opacity">
+                                <span class="material-symbols-outlined text-[20px]">person</span>
+                            </button>
+                            <div class="absolute right-0 top-full pt-2 w-48 hidden group-hover:block z-50">
+                                <div class="bg-white rounded-xl shadow-lg border border-[#becab9] overflow-hidden">
+                                    <div class="px-4 py-3 border-b border-[#becab9]">
+                                        <p class="text-sm font-semibold text-[#171d16] truncate">${user.email}</p>
+                                        <p class="text-xs text-[#3f4a3c]">${user.role === 'admin' ? 'Quản trị viên' : 'Người dùng'}</p>
+                                    </div>
+                                    <ul class="py-2">
+                                        <li><a href="profile.html" class="block px-4 py-2 text-sm text-[#171d16] hover:bg-[#dee4d9] flex items-center gap-2"><span class="material-symbols-outlined text-[18px]">person</span> Hồ sơ</a></li>
+                                        ${user.role === 'admin' ? '<li><a href="../admin/index.html" class="block px-4 py-2 text-sm text-[#171d16] hover:bg-[#dee4d9] flex items-center gap-2"><span class="material-symbols-outlined text-[18px]">admin_panel_settings</span> Quản trị</a></li>' : ''}
+                                        <li><a href="#" onclick="window.logout(event)" class="block px-4 py-2 text-sm text-[#ba1a1a] hover:bg-[#ffdad6] flex items-center gap-2"><span class="material-symbols-outlined text-[18px]">logout</span> Đăng xuất</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    `);
+                }
+            } catch(e) {}
+        }
+    });
+
+    window.logout = function(e) {
+        e.preventDefault();
+        localStorage.removeItem('pickleballUser');
+        window.location.reload();
+    };
+</script>
+
+</body>
+</html>

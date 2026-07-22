@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API Pickleball</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow">
+        <h1 class="text-2xl font-bold mb-4">Pickleball API Tester</h1>
+        
+        <div class="flex gap-4 mb-6 flex-wrap">
+            <!-- Courts & Products -->
+            <button onclick="getCourts()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">1. Sân (GET)</button>
+            <button onclick="createCourt()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">2. Thêm Sân</button>
+            <button onclick="getProducts()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">3. Sản phẩm (GET)</button>
+            <button onclick="createProduct()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">4. Thêm SP</button>
+            
+            <!-- Bookings -->
+            <button onclick="getBookings()" class="bg-cyan-600 text-white px-4 py-2 rounded hover:bg-cyan-700">8. Lịch đặt (GET)</button>
+            <button onclick="createBooking()" class="bg-cyan-600 text-white px-4 py-2 rounded hover:bg-cyan-700">9. Tạo Lịch (POST)</button>
+            
+            <!-- Orders -->
+            <button onclick="getOrders()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">10. Hóa đơn (GET)</button>
+            <button onclick="createOrder()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">11. Mua hàng (POST)</button>
+            
+            <!-- Tournaments -->
+            <button onclick="getTournaments()" class="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700">12. Giải đấu</button>
+            <button onclick="createTournament()" class="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700">13. Tạo Giải</button>
+            <button onclick="joinTournament()" class="bg-yellow-800 text-white px-4 py-2 rounded hover:bg-yellow-900">14. Tham gia</button>
+            
+            <!-- Reviews -->
+            <button onclick="getReviews()" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">15. Đánh giá (GET)</button>
+            <button onclick="createReview()" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">16. Viết Đánh giá (POST)</button>
+            
+            <!-- Auth -->
+            <button onclick="registerUser()" class="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700">5. Đăng ký</button>
+            <button onclick="loginUser()" class="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700">6. Đăng nhập</button>
+            <button onclick="getProfile()" class="bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-800">7. Hồ sơ (Cần Token)</button>
+        </div>
+
+        <div class="bg-gray-900 text-green-400 p-4 rounded overflow-auto h-96 font-mono text-sm">
+            <pre id="output">Bấm nút ở trên để xem kết quả trả về từ Laravel API...</pre>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://127.0.0.1:8000/api';
+
+        // Hàm in ra màn hình
+        function printOutput(data) {
+            document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+        }
+
+        // Test GET Courts
+        async function getCourts() {
+            document.getElementById('output').textContent = "Đang tải dữ liệu...";
+            try {
+                const response = await fetch(`${API_URL}/courts`);
+                const data = await response.json();
+                printOutput(data);
+            } catch (error) {
+                printOutput({ error: "Không kết nối được API. Bạn đã chạy php artisan serve chưa?", details: error.message });
+            }
+        }
+
+        // Test POST Court
+        async function createCourt() {
+            document.getElementById('output').textContent = "Đang gửi dữ liệu tạo sân mới...";
+            
+            const newCourt = {
+                name: "Sân Test " + Math.floor(Math.random() * 1000),
+                type: "indoor",
+                price_per_hour: 250000,
+                status: "active"
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/courts`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(newCourt)
+                });
+                const data = await response.json();
+                printOutput(data);
+            } catch (error) {
+                printOutput({ error: "Lỗi kết nối", details: error.message });
+            }
+        }
+
+        // Test GET Products
+        async function getProducts() {
+            document.getElementById('output').textContent = "Đang tải dữ liệu sản phẩm...";
+            try {
+                const response = await fetch(`${API_URL}/products`);
+                const data = await response.json();
+                printOutput(data);
+            } catch (error) {
+                printOutput({ error: "Lỗi kết nối", details: error.message });
+            }
+        }
+
+        // Test POST Product
+        async function createProduct() {
+            document.getElementById('output').textContent = "Đang gửi dữ liệu tạo sản phẩm mới...";
+            
+            const newProduct = {
+                name: "Vợt Pickleball Joola " + Math.floor(Math.random() * 100),
+                description: "Vợt carbon cao cấp dành cho người chơi chuyên nghiệp.",
+                price: 4500000,
+                stock: 20
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/products`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(newProduct)
+                });
+                const data = await response.json();
+                printOutput(data);
+            } catch (error) {
+                printOutput({ error: "Lỗi kết nối", details: error.message });
+            }
+        }
+
+        // ================= AUTHENTICATION =================
+        let userToken = ""; // Biến lưu tạm token sau khi đăng nhập
+
+        async function registerUser() {
+            document.getElementById('output').textContent = "Đang đăng ký user mới...";
+            const newUser = {
+                name: "Tài Khoản Test",
+                email: "test" + Math.floor(Math.random() * 1000) + "@gmail.com",
+                password: "password123",
+                role: "user",
+                phone: "0901234567"
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify(newUser)
+                });
+                const data = await response.json();
+                if(data.access_token) userToken = data.access_token;
+                printOutput({ "Lưu ý": "Token đã được lưu vào bộ nhớ tạm", ...data });
+            } catch (error) {
+                printOutput({ error: "Lỗi kết nối", details: error.message });
+            }
+        }
+
+        async function loginUser() {
+            document.getElementById('output').textContent = "Đang đăng nhập... Vui lòng xem kết quả bên dưới (Dùng mail vừa tạo nếu có, hoặc tạo tự động nếu chưa có).";
+            const loginData = {
+                email: "admin@pickleball.com", // Đổi thành mail thực tế nếu cần test
+                password: "password123"
+            };
+            
+            printOutput({"Hướng dẫn": "Hãy bấm nút số 5 (Đăng ký) trước để tạo 1 tài khoản ngẫu nhiên, hệ thống sẽ tự lưu Token. Sau đó hãy thử lại nút số 7."});
+        }
+
+        async function getProfile() {
+            if(!userToken) {
+                printOutput({ error: "Chưa có Token! Vui lòng bấm Đăng ký để lấy Token trước." });
+                return;
+            }
+            
+            document.getElementById('output').textContent = "Đang lấy thông tin hồ sơ (Dùng Token)...";
+            try {
+                const response = await fetch(`${API_URL}/profile`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'Authorization': `Bearer ${userToken}`
+                    }
+                });
+                const data = await response.json();
+                printOutput(data);
+            } catch (error) {
+                printOutput({ error: "Lỗi kết nối", details: error.message });
+            }
+        }
+
+        // ================= BOOKINGS =================
+        async function getBookings() {
+            document.getElementById('output').textContent = "Đang tải danh sách lịch đặt...";
+            try {
+                const response = await fetch(`${API_URL}/bookings`);
+                const data = await response.json();
+                printOutput(data);
+            } catch (error) {
+                printOutput({ error: "Lỗi kết nối", details: error.message });
+            }
+        }
+
+        async function createBooking() {
+            document.getElementById('output').textContent = "Đang gửi yêu cầu đặt lịch mới...\nLưu ý: API này cần có user_id. Tôi sẽ lấy ID 1 làm mẫu, nếu báo lỗi user_id không tồn tại, hãy tạo User (Nút 5) trước.";
+            
+            const newBooking = {
+                user_id: 1, // ID của người dùng (tạm fix cứng)
+                court_id: null, // Test thử chỉ thuê HLV, chưa chọn sân
+                coach_id: 1, // Thuê HLV có ID = 1
+                booking_date: "2026-05-20",
+                start_time: "08:00",
+                end_time: "10:00",
+                total_price: 300000,
+                payment_status: "pending"
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/bookings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify(newBooking)
+                });
+                const data = await response.json();
+                printOutput(data);
+            } catch (error) {
+                printOutput({ error: "Lỗi kết nối", details: error.message });
+            }
+        }
+
+        // ================= ORDERS =================
+        async function getOrders() {
+            document.getElementById('output').textContent = "Đang tải danh sách hóa đơn mua hàng...";
+            try {
+                const response = await fetch(`${API_URL}/orders`);
+                const data = await response.json();
+                printOutput(data);
+            } catch (error) {
+                printOutput({ error: "Lỗi kết nối", details: error.message });
+            }
+        }
+
+        async function createOrder() {
+            document.getElementById('output').textContent = "Đang gửi yêu cầu tạo hóa đơn...\nLưu ý: API này cần user_id (Lấy mặc định ID=1) và product_id (Lấy mặc định ID=1). Nếu lỗi, hãy tạo User (Nút 5) và Tạo Sản phẩm (Nút 4) trước.";
+            
+            const newOrder = {
+                user_id: 1, 
+                total_amount: 4700000,
+                status: "pending",
+                items: [
+                    { product_id: 1, quantity: 1, unit_price: 4500000 },
+                    { product_id: 1, quantity: 2, unit_price: 100000 } // Giả sử mua thêm phụ kiện
+                ]
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/orders`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify(newOrder)
+                });
+                const data = await response.json();
+                printOutput(data);
+            } catch (error) {
+                printOutput({ error: "Lỗi kết nối", details: error.message });
+            }
+        }
+
+        // ================= TOURNAMENTS =================
+        async function getTournaments() {
+            document.getElementById('output').textContent = "Đang tải danh sách giải đấu...";
+            try {
+                const response = await fetch(`${API_URL}/tournaments`);
+                const data = await response.json();
+                printOutput(data);
+            } catch (error) {
+                printOutput({ error: "Lỗi kết nối", details: error.message });
+            }
+        }
+
+        async function createTournament() {
+            document.getElementById('output').textContent = "Đang tạo giải đấu mới...";
+            
+            const newTournament = {
+                name: "Giải Pickleball Vô Địch Mùa Hè " + Math.floor(Math.random() * 100),
+                description: "Giải đấu giao lưu dành cho mọi lứa tuổi",
+                start_date: "2026-06-01",
+                end_date: "2026-06-15"
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/tournaments`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify(newTournament)
+                });
+                const data = await response.json();
+                printOutput(data);
+            } catch (error) {
+                printOutput({ error: "Lỗi kết nối", details: error.message });
+            }
+        }
+
+        async function joinTournament() {
+            document.getElementById('output').textContent = "Đang đăng ký user_id=1 vào giải đấu tournament_id=1...\n(Yêu cầu cả 2 ID này phải tồn tại trong DB, nếu không hãy bấm nút 5 và nút 13 trước)";
+            
+            try {
+                const response = await fetch(`${API_URL}/tournaments/1/join`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ user_id: 1 })
+                });
+                const data = await response.json();
+                printOutput(data);
+            } catch (error) {
+                printOutput({ error: "Lỗi kết nối", details: error.message });
+            }
+        }
+
+        // ================= REVIEWS =================
+        async function getReviews() {
+            document.getElementById('output').textContent = "Đang tải danh sách các bài đánh giá...";
+            try {
+                const response = await fetch(`${API_URL}/reviews`);
+                const data = await response.json();
+                printOutput(data);
+            } catch (error) {
+                printOutput({ error: "Lỗi kết nối", details: error.message });
+            }
+        }
+
+        async function createReview() {
+            document.getElementById('output').textContent = "Đang gửi đánh giá 5 sao cho Sân Pickleball ID 1...\n(Nếu lỗi 404, hãy tạo User (Nút 5) và Sân (Nút 2) trước để có dữ liệu nhé)";
+            
+            const newReview = {
+                user_id: 1, 
+                reviewable_type: "App\\Models\\Court", // Đánh giá Sân (có thể đổi thành App\Models\User để đánh giá HLV)
+                reviewable_id: 1, // ID của Sân
+                rating: 5,
+                comment: "Sân rất đẹp, mặt sân chuẩn quốc tế, đèn sáng không bị chói mắt!"
+            };
+
+            try {nnn
+                const response = await fetch(`${API_URL}/reviews`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify(newReview)
+                });
+                const data = await response.json();
+                printOutput(data);
+            } catch (error) {
+                printOutput({ error: "Lỗi kết nối", details: error.message });
+            }
+        }
+    </script>
+</body>
+</html>
