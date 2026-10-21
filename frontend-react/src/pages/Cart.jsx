@@ -67,7 +67,7 @@ const Cart = () => {
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const totalDeposit = cartItems.reduce((sum, item) => sum + (item.isRental ? (item.deposit * item.quantity) : 0), 0);
-  const shipping = subtotal > 2000000 ? 0 : 35000; // Miễn phí ship đơn > 2 triệu
+  const shipping = deliveryMethod === 'counter' ? 0 : (subtotal > 2000000 ? 0 : 35000); // Nhận tại quầy -> 0đ tiền ship
   const total = subtotal + shipping + totalDeposit;
 
   // Kiểm tra xem đơn hàng có chứa sản phẩm mua đứt hay không
@@ -238,7 +238,9 @@ const Cart = () => {
                       </div>
                       <div className="flex justify-between border-t border-dashed border-emerald-100 pt-2">
                         <span className="text-gray-500">Số tiền cần trả:</span>
-                        <span className="font-extrabold text-emerald-700 text-lg">{total.toLocaleString('vi-VN')}đ</span>
+                        <span className="font-extrabold text-emerald-700 text-lg">
+                          {Number(orderSuccessDetails.total_amount || orderSuccessDetails.total_price || total).toLocaleString('vi-VN')}đ
+                        </span>
                       </div>
                       <div className="bg-emerald-50 text-emerald-800 text-xs px-3 py-2 rounded-lg mt-2">
                         💡 Nhân viên giao hàng sẽ liên hệ trước khi đến. Vui lòng chuẩn bị tiền mặt đúng số tiền trên.
@@ -270,7 +272,7 @@ const Cart = () => {
                   ) : paymentMethod === 'momo' ? (
                     <div className="relative">
                       <img 
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=momo://payment?amount=${total}&orderId=PB-SHOP-${orderSuccessDetails.id}`} 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=momo://payment?amount=${orderSuccessDetails.total_amount || total}&orderId=PB-SHOP-${orderSuccessDetails.id}`} 
                         alt="MoMo UAT Sandbox Payment QR"
                         className="w-[180px] h-[180px] object-contain rounded-lg" 
                       />
@@ -282,7 +284,7 @@ const Cart = () => {
                     </div>
                   ) : (
                     <img 
-                      src={`https://api.vietqr.io/image/970415-123456789999-vietqr_net.jpg?accountName=CLB%20PICKLEBALL%20PRO&amount=${total}&addInfo=CK%20PB%20${orderSuccessDetails.id}`} 
+                      src={`https://api.vietqr.io/image/970415-123456789999-vietqr_net.jpg?accountName=CLB%20PICKLEBALL%20PRO&amount=${orderSuccessDetails.total_amount || total}&addInfo=CK%20PB%20${orderSuccessDetails.id}`} 
                       alt="VietQR Payment Code"
                       className="w-[180px] h-[180px] object-contain mix-blend-multiply" 
                     />
@@ -334,7 +336,7 @@ const Cart = () => {
                       </div>
                       <div className="flex justify-between text-[#d82d8b] font-bold border-t border-dashed border-pink-200 pt-2">
                         <span>Số tiền MoMo:</span>
-                        <span>{total.toLocaleString('vi-VN')}đ</span>
+                        <span>{Number(orderSuccessDetails.total_amount || orderSuccessDetails.total_price || total).toLocaleString('vi-VN')}đ</span>
                       </div>
                       <div className="bg-[#d82d8b]/10 p-2 rounded-lg text-[9px] text-[#d82d8b] leading-relaxed">
                         💡 <strong>MoMo Test Info:</strong> Dành cho MoMo UAT Sandbox testing. Vui lòng bấm nút giả lập để kiểm thử đối soát tự động.
@@ -352,7 +354,9 @@ const Cart = () => {
                       <span className="col-span-2 font-bold text-gray-800">CLB PICKLEBALL PRO</span>
 
                       <span className="text-gray-400">Số tiền:</span>
-                      <span className="col-span-2 font-extrabold text-blue-600 text-lg">{total.toLocaleString('vi-VN')} đ</span>
+                      <span className="col-span-2 font-extrabold text-blue-600 text-lg">
+                        {Number(orderSuccessDetails.total_amount || orderSuccessDetails.total_price || total).toLocaleString('vi-VN')} đ
+                      </span>
 
                       <span className="text-gray-400">Nội dung CK:</span>
                       <span className="col-span-2 font-black text-gray-900 bg-gray-100 px-2 py-0.5 rounded text-xs w-max">
@@ -757,7 +761,13 @@ const Cart = () => {
                 
                 <div className="flex justify-between">
                   <span>Phí vận chuyển</span>
-                  <span className="font-semibold text-gray-900">{shipping === 0 ? 'Miễn phí' : `${shipping.toLocaleString('vi-VN')}đ`}</span>
+                  <span className="font-semibold text-gray-900">
+                    {deliveryMethod === 'counter' ? (
+                      <strong className="text-green-600 font-bold">Miễn phí (Nhận tại quầy)</strong>
+                    ) : (
+                      shipping === 0 ? <strong className="text-green-600 font-bold">Miễn phí</strong> : `${shipping.toLocaleString('vi-VN')}đ`
+                    )}
+                  </span>
                 </div>
               </div>
 

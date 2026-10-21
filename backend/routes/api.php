@@ -58,10 +58,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/messages/{otherUserId}',   [MessageController::class, 'getChatThread']);
     Route::post('/messages',                [MessageController::class, 'sendMessage']);
 
-    // --- Đặt lịch (User tự tạo) ---
+    // --- Đặt lịch (User tự tạo & cập nhật cọc/thanh toán) ---
     Route::get('/bookings',                      [BookingController::class, 'index']);
     Route::get('/bookings/{booking}',            [BookingController::class, 'show']);
     Route::post('/bookings',                     [BookingController::class, 'store']);
+    Route::put('/bookings/{booking}',            [BookingController::class, 'update']);
     Route::post('/bookings/{id}/cancel-request', [BookingController::class, 'requestCancel']);
 
     // --- Đơn hàng (User tự tạo & xem của mình) ---
@@ -71,13 +72,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/orders',                                [OrderController::class, 'store']);
     Route::post('/orders/{id}/confirm-received',          [OrderController::class, 'confirmReceived']); // Khách xác nhận
 
-    // --- Giải đấu (User tự đăng ký) ---
+    // --- Giải đấu (User tự đăng ký & hủy đăng ký) ---
     Route::post('/tournaments/{id}/join',                 [TournamentController::class, 'joinTournament']);
+    Route::post('/tournaments/{id}/leave',                [TournamentController::class, 'leaveTournament']);
 
-    // --- Đánh giá (User tự viết) ---
-    Route::post('/reviews',            [ReviewController::class, 'store']);
-    Route::put('/reviews/{review}',    [ReviewController::class, 'update']);
-    Route::delete('/reviews/{review}', [ReviewController::class, 'destroy']);
+    // --- Đánh giá (User tự viết & Admin quản lý) ---
+    Route::post('/reviews',                     [ReviewController::class, 'store']);
+    Route::put('/reviews/{review}',             [ReviewController::class, 'update']);
+    Route::put('/reviews/{id}/toggle-hide',     [ReviewController::class, 'toggleHide']);
+    Route::delete('/reviews/{review}',          [ReviewController::class, 'destroy']);
 
     // ═══════════════════════════════════════════════════════════
     // [ADMIN] Chỉ Admin mới được dùng — middleware check role
@@ -85,10 +88,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('admin')->group(function () {
 
         // Quản lý Users
-        Route::get('/admin/users',           [AuthController::class, 'getAllUsers']);
-        Route::post('/admin/users',          [AuthController::class, 'createUserByAdmin']);
-        Route::put('/admin/users/{id}',      [AuthController::class, 'updateUserByAdmin']);
-        Route::delete('/admin/users/{id}',   [AuthController::class, 'deleteUserByAdmin']);
+        Route::get('/admin/users',                    [AuthController::class, 'getAllUsers']);
+        Route::post('/admin/users',                   [AuthController::class, 'createUserByAdmin']);
+        Route::put('/admin/users/{id}',               [AuthController::class, 'updateUserByAdmin']);
+        Route::put('/admin/users/{id}/toggle-lock',   [AuthController::class, 'toggleLockUserByAdmin']);
+        Route::delete('/admin/users/{id}',            [AuthController::class, 'deleteUserByAdmin']);
 
         // Quản lý Sân (CRUD đầy đủ)
         Route::post('/courts',               [CourtController::class,   'store']);
@@ -100,8 +104,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/products/{product}',    [ProductController::class, 'update']);
         Route::delete('/products/{product}', [ProductController::class, 'destroy']);
 
-        // Quản lý Đặt lịch (Admin duyệt/hủy)
-        Route::put('/bookings/{booking}',    [BookingController::class, 'update']);
+        // Quản lý Đặt lịch (Admin hủy đơn)
         Route::delete('/bookings/{booking}', [BookingController::class, 'destroy']);
 
         // Quản lý Đơn hàng (Admin cập nhật trạng thái)

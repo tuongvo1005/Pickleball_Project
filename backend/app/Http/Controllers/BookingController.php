@@ -9,10 +9,33 @@ use Illuminate\Support\Facades\Validator;
 class BookingController extends Controller
 {
     /**
+     * Tự động giải phóng các ca chơi ở trạng thái tạm giữ quá 10 phút chưa thanh toán
+     */
+    private function releaseExpiredHolds()
+    {
+        $hasExpired = Booking::where('payment_status', 'pending')
+            ->where('status', 'pending')
+            ->where('created_at', '<', now()->subMinutes(10))
+            ->exists();
+
+        if ($hasExpired) {
+            Booking::where('payment_status', 'pending')
+                ->where('status', 'pending')
+                ->where('created_at', '<', now()->subMinutes(10))
+                ->update([
+                    'status' => 'cancelled',
+                    'payment_status' => 'failed'
+                ]);
+        }
+    }
+
+    /**
      * Lấy danh sách lượt đặt (Kèm thông tin Khách, Sân, HLV)
      */
     public function index()
     {
+        $this->releaseExpiredHolds();
+
         // Sử dụng Eager Loading để lấy luôn tên User, Sân, HLV giúp giảm thiểu query
         $bookings = Booking::with(['user:id,name,phone', 'court:id,name', 'coach:id,name'])->get();
         
@@ -27,6 +50,8 @@ class BookingController extends Controller
      */
     public function show($id)
     {
+        $this->releaseExpiredHolds();
+
         $booking = Booking::with(['user', 'court', 'coach'])->find($id);
 
         if (!$booking) {
@@ -47,6 +72,8 @@ class BookingController extends Controller
      */
     public function store(Request $request)
     {
+        $this->releaseExpiredHolds();
+
         // Kiểm tra coach_id có tồn tại trong DB không, nếu không thì tự động gán HLV đầu tiên hoặc User đầu tiên
         if ($request->has('coach_id') && !empty($request->coach_id)) {
             $exists = \App\Models\User::where('id', $request->coach_id)->exists();
@@ -93,7 +120,29 @@ class BookingController extends Controller
             ], 400);
         }
 
-        // Kiểm tra xem Sân có bị trùng lịch hay không
+        // Kiểm tra xem Sân có đang bị bảo trì hay không
+        if (!empty($request->court_id)) {
+            $courtModel = \App\Models\Court::find($request->court_id);
+            if ($courtModel && $courtModel->status === 'maintenance') {
+                $inMaintenancePeriod = true;
+                if ($courtModel->maintenance_start_date && $courtModel->maintenance_end_date) {
+                    $bDate = $request->booking_date;
+                    $inMaintenancePeriod = ($bDate >= $courtModel->maintenance_start_date && $bDate <= $courtModel->maintenance_end_date);
+                }
+                if ($inMaintenancePeriod) {
+                    $reasonText = $courtModel->maintenance_reason ? " (Lý do: {$courtModel->maintenance_reason})" : "";
+                    $startStr = $courtModel->maintenance_start_date ? date('d/m/Y', strtotime($courtModel->maintenance_start_date)) : '';
+                    $endStr = $courtModel->maintenance_end_date ? date('d/m/Y', strtotime($courtModel->maintenance_end_date)) : '';
+                    $timeStr = ($startStr && $endStr) ? " từ {$startStr} đến {$endStr}" : "";
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Sân này đang trong thời gian bảo trì{$timeStr}{$reasonText}. Khách hàng không thể đặt mới trong khung giờ này."
+                    ], 400);
+                }
+            }
+        }
+
+        // Kiểm tra xem Sân có bị trùng lịch hoặc đang trong 10 phút tạm giữ hay không
         if (!empty($request->court_id)) {
             $overlapping_court_booking = Booking::where('court_id', $request->court_id)
                 ->where('booking_date', $request->booking_date)
@@ -103,17 +152,24 @@ class BookingController extends Controller
                     $query->where('start_time', '<', $request->end_time)
                           ->where('end_time', '>', $request->start_time);
                 })
+                ->where(function($query) {
+                    $query->where('payment_status', 'paid')
+                          ->orWhere(function($sub) {
+                              $sub->where('payment_status', 'pending')
+                                  ->where('created_at', '>=', now()->subMinutes(10));
+                          });
+                })
                 ->exists();
                 
             if ($overlapping_court_booking) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Sân này đã được đặt trong khung giờ được chọn. Vui lòng chọn sân hoặc khung giờ khác.'
+                    'message' => 'Sân này đang được tạm giữ trong 10 phút hoặc đã có khách đặt trùng khung giờ. Vui lòng chọn khung giờ khác.'
                 ], 400);
             }
         }
 
-        // Kiểm tra xem HLV có bị trùng lịch hay không
+        // Kiểm tra xem HLV có bị trùng lịch hoặc đang trong 10 phút tạm giữ hay không
         if (!empty($request->coach_id)) {
             $overlapping_coach_booking = Booking::where('coach_id', $request->coach_id)
                 ->where('booking_date', $request->booking_date)
@@ -123,12 +179,19 @@ class BookingController extends Controller
                     $query->where('start_time', '<', $request->end_time)
                           ->where('end_time', '>', $request->start_time);
                 })
+                ->where(function($query) {
+                    $query->where('payment_status', 'paid')
+                          ->orWhere(function($sub) {
+                              $sub->where('payment_status', 'pending')
+                                  ->where('created_at', '>=', now()->subMinutes(10));
+                          });
+                })
                 ->exists();
                 
             if ($overlapping_coach_booking) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Huấn luyện viên này đã có lịch dạy trong khung giờ được chọn. Vui lòng chọn khung giờ khác.'
+                    'message' => 'Huấn luyện viên này đang có ca tạm giữ (10 phút) hoặc đã có lịch dạy trong khung giờ được chọn. Vui lòng chọn khung giờ khác.'
                 ], 400);
             }
         }
@@ -141,10 +204,18 @@ class BookingController extends Controller
             
             $booked_court_ids = Booking::where('booking_date', $request->booking_date)
                 ->where('status', '!=', 'cancelled')
+                ->where('payment_status', '!=', 'failed')
                 ->whereNotNull('court_id')
                 ->where(function($query) use ($request) {
                     $query->where('start_time', '<', $request->end_time)
                           ->where('end_time', '>', $request->start_time);
+                })
+                ->where(function($query) {
+                    $query->where('payment_status', 'paid')
+                          ->orWhere(function($sub) {
+                              $sub->where('payment_status', 'pending')
+                                  ->where('created_at', '>=', now()->subMinutes(10));
+                          });
                 })
                 ->pluck('court_id')
                 ->toArray();
@@ -166,7 +237,7 @@ class BookingController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Đặt lịch thành công!',
+            'message' => 'Đặt lịch thành công! Ca thuê đang được tạm giữ trong 10 phút.',
             'data' => $booking
         ], 201);
     }
@@ -176,6 +247,8 @@ class BookingController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $this->releaseExpiredHolds();
+
         $booking = Booking::find($id);
 
         if (!$booking) {
@@ -183,6 +256,16 @@ class BookingController extends Controller
                 'success' => false,
                 'message' => 'Không tìm thấy thông tin đặt lịch.'
             ], 404);
+        }
+
+        $user = $request->user();
+
+        // Chỉ Admin hoặc người sở hữu đơn mới có quyền cập nhật đơn đặt lịch này
+        if ($user->role !== 'admin' && $booking->user_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn không có quyền cập nhật đơn đặt lịch này.'
+            ], 403);
         }
 
         $validator = Validator::make($request->all(), [
@@ -218,9 +301,14 @@ class BookingController extends Controller
                 $overlapping_court_booking = Booking::where('court_id', $court_id)
                     ->where('booking_date', $booking_date)
                     ->where('id', '!=', $id)
+                    ->where('status', '!=', 'cancelled')
+                    ->where('payment_status', '!=', 'failed')
                     ->where(function($query) {
-                        $query->whereIn('status', ['confirmed', 'completed'])
-                              ->orWhere('payment_status', 'paid');
+                        $query->where('payment_status', 'paid')
+                              ->orWhere(function($sub) {
+                                  $sub->where('payment_status', 'pending')
+                                      ->where('created_at', '>=', now()->subMinutes(10));
+                              });
                     })
                     ->where(function($query) use ($start_time, $end_time) {
                         $query->where('start_time', '<', $end_time)
@@ -231,7 +319,7 @@ class BookingController extends Controller
                 if ($overlapping_court_booking) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Sân này đã được đặt trong khung giờ được chọn. Vui lòng chọn sân hoặc khung giờ khác.'
+                        'message' => 'Sân này đang được tạm giữ trong 10 phút hoặc đã có khách đặt trùng khung giờ.'
                     ], 400);
                 }
             }
@@ -241,9 +329,14 @@ class BookingController extends Controller
                 $overlapping_coach_booking = Booking::where('coach_id', $coach_id)
                     ->where('booking_date', $booking_date)
                     ->where('id', '!=', $id)
+                    ->where('status', '!=', 'cancelled')
+                    ->where('payment_status', '!=', 'failed')
                     ->where(function($query) {
-                        $query->whereIn('status', ['confirmed', 'completed'])
-                              ->orWhere('payment_status', 'paid');
+                        $query->where('payment_status', 'paid')
+                              ->orWhere(function($sub) {
+                                  $sub->where('payment_status', 'pending')
+                                      ->where('created_at', '>=', now()->subMinutes(10));
+                              });
                     })
                     ->where(function($query) use ($start_time, $end_time) {
                         $query->where('start_time', '<', $end_time)
@@ -254,7 +347,7 @@ class BookingController extends Controller
                 if ($overlapping_coach_booking) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Huấn luyện viên này đã có lịch dạy trong khung giờ được chọn. Vui lòng chọn khung giờ khác.'
+                        'message' => 'Huấn luyện viên này đang có ca tạm giữ (10 phút) hoặc đã có lịch dạy trong khung giờ được chọn.'
                     ], 400);
                 }
             }
@@ -343,7 +436,7 @@ class BookingController extends Controller
             if ($now->diffInHours($bookingDateTime, false) < 24) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Không thể hủy sân do đã quá sát giờ thi đấu.'
+                    'message' => 'Quy định chỉ được gửi yêu cầu hủy lịch đặt sân trước thời gian nhận sân ít nhất 24 tiếng (1 ngày)!'
                 ], 400);
             }
         } catch (\Exception $e) {
@@ -361,7 +454,7 @@ class BookingController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Gửi yêu cầu hủy thành công, vui lòng chờ Admin xử lý!',
+            'message' => 'Gửi yêu cầu hủy lịch thành công! Hệ thống đã tự động phát thông báo tới Admin để chờ xử lý.',
             'data' => $booking
         ], 200);
     }

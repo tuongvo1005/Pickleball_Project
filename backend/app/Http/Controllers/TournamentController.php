@@ -13,8 +13,8 @@ class TournamentController extends Controller
      */
     public function index()
     {
-        // Lấy giải đấu kèm theo số lượng người tham gia hiện tại (participants_count)
-        $tournaments = Tournament::withCount('participants')->get();
+        // Lấy giải đấu kèm theo số lượng người tham gia hiện tại (participants_count) và danh sách người chơi
+        $tournaments = Tournament::with(['participants:id,name,email,phone'])->withCount('participants')->get();
 
         return response()->json([
             'success' => true,
@@ -184,9 +184,9 @@ class TournamentController extends Controller
     }
 
     /**
-     * Hủy đăng ký / Xóa người tham gia khỏi giải đấu (Dành cho Admin)
+     * Hủy đăng ký / Tự hủy tham gia giải đấu (Dành cho User hoặc Admin)
      */
-    public function removeParticipant(Request $request, $id)
+    public function leaveTournament(Request $request, $id)
     {
         $tournament = Tournament::find($id);
 
@@ -197,29 +197,36 @@ class TournamentController extends Controller
             ], 404);
         }
 
-        $validator = Validator::make($request->all(), [
-            'user_id' => 'required|exists:users,id'
-        ]);
+        $userId = $request->input('user_id') ?: $request->user()->id;
 
-        if ($validator->fails()) {
+        // Chỉ Admin hoặc chính người dùng đó mới được hủy đăng ký
+        if ($request->user()->role !== 'admin' && $request->user()->id != $userId) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
+                'message' => 'Bạn chỉ có quyền hủy đăng ký cho chính mình.'
+            ], 403);
         }
 
-        if (!$tournament->participants()->where('user_id', $request->user_id)->exists()) {
+        if (!$tournament->participants()->where('user_id', $userId)->exists()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Người dùng này chưa đăng ký tham gia giải đấu này.'
+                'message' => 'Bạn chưa đăng ký tham gia giải đấu này.'
             ], 400);
         }
 
-        $tournament->participants()->detach($request->user_id);
+        $tournament->participants()->detach($userId);
 
         return response()->json([
             'success' => true,
-            'message' => 'Xóa người tham gia khỏi giải đấu thành công!'
+            'message' => 'Đã hủy đăng ký tham gia giải đấu thành công!'
         ], 200);
+    }
+
+    /**
+     * Hủy đăng ký / Xóa người tham gia khỏi giải đấu (Dành cho Admin)
+     */
+    public function removeParticipant(Request $request, $id)
+    {
+        return $this->leaveTournament($request, $id);
     }
 }

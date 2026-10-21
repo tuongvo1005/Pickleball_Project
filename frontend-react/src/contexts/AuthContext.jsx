@@ -8,13 +8,13 @@ const AuthContext = createContext({
 });
 
 export const AuthProvider = ({ children }) => {
+  const [token, _setToken] = useState(() => localStorage.getItem('ACCESS_TOKEN'));
   const [user, _setUser] = useState(() => {
-    // Thử lấy thông tin user từ localStorage nếu có
+    const savedToken = localStorage.getItem('ACCESS_TOKEN');
     const savedUser = localStorage.getItem('user_info');
+    if (!savedToken) return null;
     return savedUser ? JSON.parse(savedUser) : null;
   });
-  
-  const [token, _setToken] = useState(localStorage.getItem('ACCESS_TOKEN'));
 
   const setUser = (userObj) => {
     _setUser(userObj);
@@ -31,6 +31,8 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('ACCESS_TOKEN', newToken);
     } else {
       localStorage.removeItem('ACCESS_TOKEN');
+      localStorage.removeItem('user_info');
+      _setUser(null);
     }
   };
 

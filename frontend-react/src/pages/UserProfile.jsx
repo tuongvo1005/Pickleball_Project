@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import axiosClient from '../axiosClient';
@@ -6,6 +7,7 @@ import axiosClient from '../axiosClient';
 const TABS = [
   { id: 'info', icon: 'person', label: 'Thông tin cá nhân' },
   { id: 'bookings', icon: 'calendar_today', label: 'Lịch sử đặt sân' },
+  { id: 'tournaments', icon: 'emoji_events', label: 'Giải đấu đã đăng ký' },
   { id: 'password', icon: 'lock', label: 'Đổi mật khẩu' },
   { id: 'activity', icon: 'history', label: 'Hoạt động' },
 ];
@@ -17,18 +19,32 @@ const ROLE_STYLES = {
 };
 
 const UserProfile = () => {
+  const navigate = useNavigate();
   const { user, setUser } = useAuthContext();
   const toast = useToast();
   const [activeTab, setActiveTab] = useState('info');
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
+  // Tournaments state
+  const [myTournaments, setMyTournaments] = useState([]);
+  const [loadingTournaments, setLoadingTournaments] = useState(false);
+  const [selectedTournamentForLeave, setSelectedTournamentForLeave] = useState(null);
+  const [submittingLeave, setSubmittingLeave] = useState(false);
+
   // Bookings state
   const [bookings, setBookings] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
+  const [bookingFilterTab, setBookingFilterTab] = useState('all'); // 'all', 'upcoming', 'completed', 'cancelled'
+  const [bookingSortOrder, setBookingSortOrder] = useState('desc'); // 'desc': mới nhất tới cũ nhất (mặc định), 'asc': cũ nhất tới mới nhất
   const [selectedBookingForCancel, setSelectedBookingForCancel] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
   const [submittingCancel, setSubmittingCancel] = useState(false);
+  const [selectedBookingDetail, setSelectedBookingDetail] = useState(null); // Modal chi tiết đơn
+
+  // Reviews state
+  const [userReviews, setUserReviews] = useState([]);
+  const [existingReviewId, setExistingReviewId] = useState(null);
 
   const fetchBookings = async () => {
     setLoadingBookings(true);
@@ -45,9 +61,83 @@ const UserProfile = () => {
     }
   };
 
+  const fetchUserReviews = async () => {
+    try {
+      const res = await axiosClient.get('/reviews');
+      if (res.data.success) {
+        setUserReviews((res.data.data || []).filter(r => r.user_id?.toString() === user?.id?.toString()));
+      }
+    } catch (err) {
+      console.error("Lỗi lấy danh sách đánh giá:", err);
+    }
+  };
+
+  const isBookingCompleted = (booking) => {
+    if (!booking) return false;
+    if (booking.status === 'completed') return true;
+    if (booking.status === 'cancelled' || booking.status === 'Chờ duyệt hủy') return false;
+    
+    // Nếu ca chơi/HLV đã trôi qua mốc ngày & giờ kết thúc -> tự động xem như đã hoàn thành ca
+    if (booking.booking_date && booking.end_time) {
+      try {
+        const [hours, minutes] = booking.end_time.split(':').map(Number);
+        const bookingEndTime = new Date(booking.booking_date);
+        bookingEndTime.setHours(hours || 23, minutes || 59, 0, 0);
+        const now = new Date();
+        if (now > bookingEndTime && (booking.status === 'confirmed' || booking.payment_status === 'paid' || booking.status === 'pending')) {
+          return true;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return false;
+  };
+
+  const fetchMyTournaments = async () => {
+    setLoadingTournaments(true);
+    try {
+      const res = await axiosClient.get('/tournaments');
+      const list = res.data.data || [];
+      const registered = list.filter(t => 
+        t.participants && t.participants.some(p => p.id?.toString() === user?.id?.toString())
+      );
+      setMyTournaments(registered);
+    } catch (err) {
+      console.error("Lỗi lấy danh sách giải đấu đã đăng ký:", err);
+      toast.error('Không thể tải danh sách giải đấu đã đăng ký.');
+    } finally {
+      setLoadingTournaments(false);
+    }
+  };
+
+  const handleConfirmLeaveTournament = async () => {
+    if (!selectedTournamentForLeave) return;
+    setSubmittingLeave(true);
+    try {
+      const res = await axiosClient.post(`/tournaments/${selectedTournamentForLeave.id}/leave`, {
+        user_id: user.id
+      });
+      if (res.data.success) {
+        toast.success(res.data.message || 'Đã hủy đăng ký giải đấu thành công!');
+        setSelectedTournamentForLeave(null);
+        fetchMyTournaments();
+      }
+    } catch (err) {
+      console.error(err);
+      const msg = err.response?.data?.message || 'Có lỗi xảy ra khi hủy đăng ký.';
+      toast.error(msg);
+    } finally {
+      setSubmittingLeave(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'bookings' && user) {
       fetchBookings();
+      fetchUserReviews();
+    } else if (activeTab === 'tournaments' && user) {
+      fetchMyTournaments();
     }
   }, [activeTab, user]);
 
@@ -57,12 +147,12 @@ const UserProfile = () => {
       const bookingDateTime = new Date(bookingTimeStr);
       const now = new Date();
 
-      // Tính khoảng cách giờ
+      // Tính khoảng cách giờ (Cần ít nhất 24h - 1 ngày trước ca chơi)
       const diffMs = bookingDateTime - now;
       const diffHours = diffMs / (1000 * 60 * 60);
 
       if (diffHours < 24) {
-        toast.warning('Không thể hủy sân do đã quá sát giờ thi đấu (dưới 24 tiếng).');
+        toast.warning('Quy định: Chỉ được gửi yêu cầu hủy lịch đặt sân trước thời gian nhận sân ít nhất 24 tiếng (1 ngày)!');
         return;
       }
 
@@ -88,7 +178,7 @@ const UserProfile = () => {
       });
 
       if (res.data.success) {
-        toast.success(res.data.message || 'Gửi yêu cầu hủy thành công!');
+        toast.success(res.data.message || 'Gửi yêu cầu hủy lịch thành công! Hệ thống đã gửi thông báo đến Admin.');
         setBookings(prev => prev.map(b => 
           b.id === selectedBookingForCancel.id 
             ? { ...b, status: 'Chờ duyệt hủy', notes: (b.notes ? b.notes + "\n" : "") + "Yêu cầu hủy lịch. Lý do: " + cancelReason }
@@ -97,7 +187,7 @@ const UserProfile = () => {
         setSelectedBookingForCancel(null);
       }
     } catch (err) {
-      const msg = err.response?.data?.message || 'Không thể gửi yêu cầu hủy.';
+      const msg = err.response?.data?.message || 'Quy định: Chỉ được gửi yêu cầu hủy lịch đặt sân trước thời gian nhận sân ít nhất 24 tiếng (1 ngày)!';
       toast.error(msg);
     } finally {
       setSubmittingCancel(false);
@@ -110,44 +200,82 @@ const UserProfile = () => {
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
 
-  const handleReviewClick = (booking) => {
-    setSelectedBookingForReview(booking);
-    setReviewRating(5);
-    setReviewComment('');
+  const handleReviewClick = (booking, targetType = 'auto') => {
+    let reviewableType = 'App\\Models\\Court';
+    let reviewableId = booking.court_id;
+
+    if (targetType === 'coach' || (targetType === 'auto' && booking.coach_id && !booking.court_id)) {
+      reviewableType = 'App\\Models\\User';
+      reviewableId = booking.coach_id;
+    }
+
+    const reviewObj = {
+      ...booking,
+      _targetType: reviewableType,
+      _targetId: reviewableId
+    };
+
+    setSelectedBookingForReview(reviewObj);
+
+    // Tìm xem người dùng đã đánh giá đối tượng này chưa
+    const existing = userReviews.find(r => 
+      r.reviewable_id?.toString() === reviewableId?.toString() && 
+      r.reviewable_type === reviewableType
+    );
+
+    if (existing) {
+      setExistingReviewId(existing.id);
+      setReviewRating(existing.rating || 5);
+      setReviewComment(existing.comment || '');
+    } else {
+      setExistingReviewId(null);
+      setReviewRating(5);
+      setReviewComment('');
+    }
   };
 
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
     if (!selectedBookingForReview) return;
 
-    let reviewableType = '';
-    let reviewableId = null;
+    let reviewableType = selectedBookingForReview._targetType;
+    let reviewableId = selectedBookingForReview._targetId;
 
-    // Tự động nhận diện đối tượng đánh giá: nếu thuê HLV thì đối tượng là User (App\Models\User), nếu đặt sân thì là Court (App\Models\Court)
-    if (selectedBookingForReview.coach_id) {
-      reviewableType = 'App\\Models\\User';
-      reviewableId = selectedBookingForReview.coach_id;
-    } else if (selectedBookingForReview.court_id) {
-      reviewableType = 'App\\Models\\Court';
-      reviewableId = selectedBookingForReview.court_id;
-    } else {
-      toast.error('Không tìm thấy đối tượng hợp lệ để đánh giá.');
-      return;
+    if (!reviewableType || !reviewableId) {
+      if (selectedBookingForReview.coach_id) {
+        reviewableType = 'App\\Models\\User';
+        reviewableId = selectedBookingForReview.coach_id;
+      } else if (selectedBookingForReview.court_id) {
+        reviewableType = 'App\\Models\\Court';
+        reviewableId = selectedBookingForReview.court_id;
+      } else {
+        toast.error('Không tìm thấy đối tượng hợp lệ để đánh giá.');
+        return;
+      }
     }
 
     setSubmittingReview(true);
     try {
-      const res = await axiosClient.post('/reviews', {
-        user_id: user.id,
-        reviewable_type: reviewableType,
-        reviewable_id: reviewableId,
-        rating: reviewRating,
-        comment: reviewComment
-      });
+      let res;
+      if (existingReviewId) {
+        res = await axiosClient.put(`/reviews/${existingReviewId}`, {
+          rating: reviewRating,
+          comment: reviewComment
+        });
+      } else {
+        res = await axiosClient.post('/reviews', {
+          user_id: user.id,
+          reviewable_type: reviewableType,
+          reviewable_id: reviewableId,
+          rating: reviewRating,
+          comment: reviewComment
+        });
+      }
 
       if (res.data.success) {
-        toast.success(res.data.message || 'Cảm ơn bạn đã gửi đánh giá!');
+        toast.success(res.data.message || (existingReviewId ? 'Cập nhật đánh giá thành công!' : 'Cảm ơn bạn đã gửi đánh giá!'));
         setSelectedBookingForReview(null);
+        fetchUserReviews();
       }
     } catch (err) {
       const msg = err.response?.data?.message || 'Có lỗi xảy ra khi gửi đánh giá.';
@@ -528,18 +656,70 @@ const UserProfile = () => {
             {/* TAB: Lịch sử đặt sân */}
             {activeTab === 'bookings' && (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center">
+                <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center flex-wrap gap-4">
                   <div>
                     <h2 className="text-lg font-bold text-gray-900">Lịch sử đặt sân của tôi</h2>
                     <p className="text-sm text-gray-400 mt-0.5">Theo dõi lịch đặt sân chơi tự do và thuê huấn luyện viên</p>
                   </div>
-                  <button 
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setBookingSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                      className="flex items-center gap-1.5 px-3.5 py-2 border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+                      title="Bấm để đổi thứ tự sắp xếp (Mới nhất <-> Cũ nhất)"
+                    >
+                      <span className="material-symbols-outlined text-[16px] text-green-600 font-bold">swap_vert</span>
+                      <span>Thứ tự: <strong className="text-green-700">{bookingSortOrder === 'desc' ? 'Mới nhất ➔ Cũ nhất' : 'Cũ nhất ➔ Mới nhất'}</strong></span>
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={fetchBookings} 
+                      disabled={loadingBookings}
+                      className="p-2 text-gray-500 hover:text-green-600 rounded-lg hover:bg-gray-50 transition cursor-pointer"
+                      title="Tải lại danh sách"
+                    >
+                      <span className={`material-symbols-outlined ${loadingBookings ? 'animate-spin' : ''}`}>refresh</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Thanh Phân Loại Tab Đơn Hang (Luồng sự kiện phụ) */}
+                <div className="flex border-b border-gray-100 px-8 bg-gray-50/60 gap-4 pt-3 overflow-x-auto">
+                  <button
                     type="button"
-                    onClick={fetchBookings} 
-                    disabled={loadingBookings}
-                    className="p-2 text-gray-500 hover:text-green-600 rounded-lg hover:bg-gray-50 transition"
+                    onClick={() => setBookingFilterTab('all')}
+                    className={`pb-3 font-bold text-xs uppercase tracking-wider cursor-pointer transition border-b-2 whitespace-nowrap ${
+                      bookingFilterTab === 'all' ? 'border-green-600 text-green-700' : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
                   >
-                    <span className={`material-symbols-outlined ${loadingBookings ? 'animate-spin' : ''}`}>refresh</span>
+                    Tất cả ({bookings.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBookingFilterTab('upcoming')}
+                    className={`pb-3 font-bold text-xs uppercase tracking-wider cursor-pointer transition border-b-2 whitespace-nowrap ${
+                      bookingFilterTab === 'upcoming' ? 'border-green-600 text-green-700' : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Sắp tới ({bookings.filter(b => (b.status === 'pending' || b.status === 'confirmed' || b.status === 'Chờ duyệt hủy') && !isBookingCompleted(b)).length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBookingFilterTab('completed')}
+                    className={`pb-3 font-bold text-xs uppercase tracking-wider cursor-pointer transition border-b-2 whitespace-nowrap ${
+                      bookingFilterTab === 'completed' ? 'border-green-600 text-green-700' : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Đã hoàn thành ({bookings.filter(b => isBookingCompleted(b)).length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBookingFilterTab('cancelled')}
+                    className={`pb-3 font-bold text-xs uppercase tracking-wider cursor-pointer transition border-b-2 whitespace-nowrap ${
+                      bookingFilterTab === 'cancelled' ? 'border-green-600 text-green-700' : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Đã hủy ({bookings.filter(b => b.status === 'cancelled').length})
                   </button>
                 </div>
 
@@ -548,112 +728,308 @@ const UserProfile = () => {
                     <span className="material-symbols-outlined animate-spin text-4xl text-green-600">refresh</span>
                     <span className="text-gray-500 font-medium">Đang tải lịch sử đặt sân...</span>
                   </div>
-                ) : bookings.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-20 text-center px-8">
-                    <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-5">
-                      <span className="material-symbols-outlined text-4xl text-gray-300">calendar_today</span>
+                ) : (() => {
+                  const filteredBookings = bookings.filter(b => {
+                    if (bookingFilterTab === 'upcoming') return (b.status === 'pending' || b.status === 'confirmed' || b.status === 'Chờ duyệt hủy') && !isBookingCompleted(b);
+                    if (bookingFilterTab === 'completed') return isBookingCompleted(b);
+                    if (bookingFilterTab === 'cancelled') return b.status === 'cancelled';
+                    return true;
+                  });
+
+                  // Mặc định sắp xếp MỚI NHẤT -> CŨ NHẤT theo ID hoặc ngày tạo
+                  const sortedBookings = [...filteredBookings].sort((a, b) => {
+                    const timeA = new Date(a.created_at || a.booking_date || 0).getTime() || Number(a.id);
+                    const timeB = new Date(b.created_at || b.booking_date || 0).getTime() || Number(b.id);
+
+                    if (bookingSortOrder === 'desc') {
+                      return timeB - timeA || Number(b.id) - Number(a.id);
+                    } else {
+                      return timeA - timeB || Number(a.id) - Number(b.id);
+                    }
+                  });
+
+                  if (sortedBookings.length === 0) {
+                    return (
+                      <div className="flex flex-col items-center justify-center py-16 text-center px-8">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                          <span className="material-symbols-outlined text-3xl text-gray-300">calendar_today</span>
+                        </div>
+                        <h3 className="text-base font-bold text-gray-600 mb-1">Bạn chưa có lịch đặt sân nào.</h3>
+                        <p className="text-xs text-gray-400 max-w-xs">
+                          {bookingFilterTab === 'upcoming' && 'Không tìm thấy lịch đặt sân nào sắp tới.'}
+                          {bookingFilterTab === 'completed' && 'Bạn chưa có lượt chơi nào đã hoàn thành.'}
+                          {bookingFilterTab === 'cancelled' && 'Không có đơn đặt sân nào bị hủy.'}
+                          {bookingFilterTab === 'all' && 'Bạn chưa thực hiện giao dịch đặt sân nào trên hệ thống.'}
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-100 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                            <th 
+                              onClick={() => setBookingSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                              className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition select-none group"
+                              title="Bấm để đổi thứ tự sắp xếp"
+                            >
+                              <div className="flex items-center gap-1">
+                                <span>Mã đơn</span>
+                                <span className="material-symbols-outlined text-[15px] text-green-600 font-bold">
+                                  {bookingSortOrder === 'desc' ? 'arrow_downward' : 'arrow_upward'}
+                                </span>
+                              </div>
+                            </th>
+                            <th className="px-6 py-4">Thông tin sân / HLV</th>
+                            <th 
+                              onClick={() => setBookingSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                              className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition select-none group"
+                              title="Bấm để đổi thứ tự sắp xếp"
+                            >
+                              <div className="flex items-center gap-1">
+                                <span>Ngày & Giờ chơi</span>
+                                <span className="material-symbols-outlined text-[15px] text-green-600 font-bold">
+                                  {bookingSortOrder === 'desc' ? 'arrow_downward' : 'arrow_upward'}
+                                </span>
+                              </div>
+                            </th>
+                            <th className="px-6 py-4">Thành tiền</th>
+                            <th className="px-6 py-4">Trạng thái</th>
+                            <th className="px-6 py-4 text-center">Thao tác</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 text-sm">
+                          {sortedBookings.map((booking) => {
+                            const canCancel = (booking.status === 'pending' || booking.status === 'confirmed') && booking.status !== 'Chờ duyệt hủy';
+                            const reviewableType = booking.coach_id ? 'App\\Models\\User' : 'App\\Models\\Court';
+                            const reviewableId = booking.coach_id || booking.court_id;
+                            const hasReviewed = userReviews.some(r => r.reviewable_id?.toString() === reviewableId?.toString() && r.reviewable_type === reviewableType);
+                            
+                            return (
+                              <tr key={booking.id} className="hover:bg-gray-50/50 transition-colors">
+                                <td className="px-6 py-4">
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedBookingDetail(booking)}
+                                    className="font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer flex items-center gap-1"
+                                    title="Bấm để xem chi tiết lịch đặt sân"
+                                  >
+                                    #BK{String(booking.id).padStart(4, '0')}
+                                    <span className="material-symbols-outlined text-[14px]">info</span>
+                                  </button>
+                                </td>
+                                <td className="px-6 py-4">
+                                  {booking.court ? (
+                                    <div>
+                                      <p className="font-bold text-gray-800">{booking.court.name}</p>
+                                      <p className="text-xs text-gray-400">Sân chơi tự do</p>
+                                    </div>
+                                  ) : booking.coach ? (
+                                    <div>
+                                      <p className="font-bold text-gray-800">HLV: {booking.coach.name}</p>
+                                      {booking.court && <p className="text-xs text-gray-400">{booking.court.name}</p>}
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      <p className="font-bold text-gray-800">Sân đấu tự động</p>
+                                      <p className="text-xs text-gray-400">Đặt lịch chơi</p>
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4">
+                                  <p className="font-medium text-gray-700">{booking.booking_date}</p>
+                                  <p className="text-xs text-gray-400 font-medium">{booking.start_time} - {booking.end_time}</p>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="font-extrabold text-green-600">
+                                    {Number(booking.deposit_amount || (booking.total_price || 0) * 0.5).toLocaleString('vi-VN')}đ
+                                  </div>
+                                  <div className="text-[10px] text-gray-400 font-medium">
+                                    Cọc 50% (Tổng {Number(booking.total_price || 0).toLocaleString('vi-VN')}đ)
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  {booking.status === 'Chờ duyệt hủy' ? (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                      Chờ duyệt hủy
+                                    </span>
+                                  ) : booking.status === 'cancelled' ? (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
+                                      Đã hủy
+                                    </span>
+                                  ) : booking.status === 'confirmed' ? (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-50 text-green-700 border border-green-200">
+                                      Đã cọc 50%
+                                    </span>
+                                  ) : booking.status === 'completed' ? (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                      Đã hoàn tất
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-yellow-50 text-yellow-700 border border-yellow-200">
+                                      Chờ duyệt
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 text-center whitespace-nowrap">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedBookingDetail(booking)}
+                                      className="inline-flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-2.5 py-1 rounded-lg transition text-xs cursor-pointer"
+                                      title="Xem chi tiết"
+                                    >
+                                      <span className="material-symbols-outlined text-[14px]">visibility</span>
+                                      Chi tiết
+                                    </button>
+
+                                    {booking.status === 'completed' && (
+                                       <div className="flex flex-wrap items-center gap-1.5 justify-center">
+                                         {booking.coach && (
+                                           <button
+                                             type="button"
+                                             onClick={() => handleReviewClick(booking, 'coach')}
+                                             className={`inline-flex items-center gap-1 font-bold px-2.5 py-1 rounded-lg transition text-xs border cursor-pointer ${
+                                               userReviews.some(r => r.reviewable_id?.toString() === booking.coach_id?.toString() && r.reviewable_type === 'App\\Models\\User')
+                                                 ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200'
+                                                 : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
+                                             }`}
+                                           >
+                                             <span className="material-symbols-outlined text-[14px]">sports_tennis</span>
+                                             {userReviews.some(r => r.reviewable_id?.toString() === booking.coach_id?.toString() && r.reviewable_type === 'App\\Models\\User')
+                                               ? 'Sửa ĐG HLV'
+                                               : 'Đánh giá HLV'}
+                                           </button>
+                                         )}
+
+                                         {booking.court && (
+                                           <button
+                                             type="button"
+                                             onClick={() => handleReviewClick(booking, 'court')}
+                                             className={`inline-flex items-center gap-1 font-bold px-2.5 py-1 rounded-lg transition text-xs border cursor-pointer ${
+                                               userReviews.some(r => r.reviewable_id?.toString() === booking.court_id?.toString() && r.reviewable_type === 'App\\Models\\Court')
+                                                 ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200'
+                                                 : 'bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-100'
+                                             }`}
+                                           >
+                                             <span className="material-symbols-outlined text-[14px]">stadium</span>
+                                             {userReviews.some(r => r.reviewable_id?.toString() === booking.court_id?.toString() && r.reviewable_type === 'App\\Models\\Court')
+                                               ? 'Sửa ĐG Sân'
+                                               : 'Đánh giá Sân'}
+                                           </button>
+                                         )}
+                                       </div>
+                                     )}
+
+                                    {canCancel && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleCancelClick(booking)}
+                                        className="inline-flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 font-bold px-2.5 py-1 rounded-lg transition text-xs border border-red-100 cursor-pointer"
+                                      >
+                                        <span className="material-symbols-outlined text-[14px]">cancel</span>
+                                        Yêu cầu hủy
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
-                    <h3 className="text-base font-bold text-gray-500 mb-2">Chưa có lịch đặt nào</h3>
-                    <p className="text-sm text-gray-400 max-w-xs mb-6">
-                      Bạn chưa thực hiện đặt sân hoặc thuê huấn luyện viên nào trên hệ thống.
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* TAB: Giải đấu đã đăng ký */}
+            {activeTab === 'tournaments' && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center">
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900">Giải đấu đã đăng ký</h2>
+                    <p className="text-sm text-gray-400 mt-0.5">Quản lý các giải đấu Pickleball bạn đã đăng ký tham gia</p>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={fetchMyTournaments} 
+                    disabled={loadingTournaments}
+                    className="p-2 text-gray-500 hover:text-orange-600 rounded-lg hover:bg-gray-50 transition cursor-pointer"
+                  >
+                    <span className={`material-symbols-outlined ${loadingTournaments ? 'animate-spin' : ''}`}>refresh</span>
+                  </button>
+                </div>
+
+                {loadingTournaments ? (
+                  <div className="flex flex-col items-center justify-center py-20 gap-3">
+                    <span className="material-symbols-outlined animate-spin text-4xl text-orange-500">refresh</span>
+                    <span className="text-gray-500 font-medium">Đang tải danh sách giải đấu...</span>
+                  </div>
+                ) : myTournaments.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-center px-8">
+                    <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mb-4 text-orange-500">
+                      <span className="material-symbols-outlined text-3xl">emoji_events</span>
+                    </div>
+                    <h3 className="text-base font-bold text-gray-600 mb-1">Bạn chưa đăng ký giải đấu nào.</h3>
+                    <p className="text-xs text-gray-400 max-w-xs mb-6">
+                      Hãy khám phá và tham gia các giải đấu Pickleball sôi động ngay hôm nay!
                     </p>
+                    <button 
+                      onClick={() => navigate('/tournaments')}
+                      className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-6 py-2.5 rounded-xl transition text-xs shadow-md flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-sm">search</span>
+                      Xem các giải đấu sắp tới
+                    </button>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-gray-50 border-b border-gray-100 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                          <th className="px-6 py-4">Mã lịch</th>
-                          <th className="px-6 py-4">Thông tin sân / HLV</th>
-                          <th className="px-6 py-4">Ngày & Giờ chơi</th>
-                          <th className="px-6 py-4">Thành tiền</th>
-                          <th className="px-6 py-4">Trạng thái</th>
-                          <th className="px-6 py-4 text-center">Hành động</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100 text-sm">
-                        {bookings.map((booking) => {
-                          const canCancel = (booking.status === 'pending' || booking.status === 'confirmed') && booking.status !== 'Chờ duyệt hủy';
-                          
-                          return (
-                            <tr key={booking.id} className="hover:bg-gray-50/50 transition-colors">
-                              <td className="px-6 py-4 font-bold text-gray-700">#BK{String(booking.id).padStart(4, '0')}</td>
-                              <td className="px-6 py-4">
-                                {booking.court ? (
-                                  <div>
-                                    <p className="font-bold text-gray-800">{booking.court.name}</p>
-                                    <p className="text-xs text-gray-400">Sân chơi tự do</p>
-                                  </div>
-                                ) : booking.coach ? (
-                                  <div>
-                                    <p className="font-bold text-gray-800">HLV: {booking.coach.name}</p>
-                                    {booking.court && <p className="text-xs text-gray-400">{booking.court.name}</p>}
-                                  </div>
-                                ) : (
-                                  <div>
-                                    <p className="font-bold text-gray-800">Sân đấu tự động</p>
-                                    <p className="text-xs text-gray-400">Đặt lịch chơi</p>
-                                  </div>
-                                )}
-                              </td>
-                              <td className="px-6 py-4">
-                                <p className="font-medium text-gray-700">{booking.booking_date}</p>
-                                <p className="text-xs text-gray-400 font-medium">{booking.start_time} - {booking.end_time}</p>
-                              </td>
-                              <td className="px-6 py-4 font-bold text-green-600">
-                                {Number(booking.total_price || 0).toLocaleString('vi-VN')}đ
-                              </td>
-                              <td className="px-6 py-4">
-                                {booking.status === 'Chờ duyệt hủy' ? (
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                    Chờ duyệt hủy
-                                  </span>
-                                ) : booking.status === 'cancelled' ? (
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
-                                    Đã hủy
-                                  </span>
-                                ) : booking.status === 'confirmed' ? (
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-50 text-green-700 border border-green-200">
-                                    Đã xác nhận
-                                  </span>
-                                ) : booking.status === 'completed' ? (
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                                    Đã hoàn tất
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-yellow-50 text-yellow-700 border border-yellow-200">
-                                    Chờ duyệt
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-6 py-4 text-center">
-                                {canCancel ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCancelClick(booking)}
-                                    className="inline-flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-1.5 rounded-xl transition text-xs border border-red-100 active:scale-95"
-                                  >
-                                    <span className="material-symbols-outlined text-[14px]">cancel</span>
-                                    Yêu cầu hủy
-                                  </button>
-                                ) : booking.status === 'completed' ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleReviewClick(booking)}
-                                    className="inline-flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold px-3 py-1.5 rounded-xl transition text-xs border border-blue-100 active:scale-95 hover:scale-105"
-                                  >
-                                    <span className="material-symbols-outlined text-[14px]">rate_review</span>
-                                    Viết đánh giá
-                                  </button>
-                                ) : (
-                                  <span className="text-xs text-gray-400 italic">Không hỗ trợ</span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                  <div className="p-6 space-y-4">
+                    {myTournaments.map((tournament) => (
+                      <div key={tournament.id} className="bg-gradient-to-r from-orange-50/50 to-amber-50/30 rounded-2xl border border-orange-100 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:shadow-md transition">
+                        <div className="flex items-start gap-4">
+                          <div className="w-12 h-12 bg-orange-500 text-white rounded-2xl flex items-center justify-center font-black text-xl shrink-0 shadow-md">
+                            🏆
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="text-lg font-bold text-gray-900">{tournament.name}</h3>
+                              <span className="bg-emerald-100 text-emerald-700 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                                Đã đăng ký
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-4 text-xs text-gray-500 mt-2">
+                              <span className="flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[15px] text-orange-500">calendar_today</span>
+                                Khởi tranh: <strong>{tournament.start_date}</strong>
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[15px] text-orange-500">location_on</span>
+                                {tournament.location || 'TP. Hồ Chí Minh'}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[15px] text-orange-500">payments</span>
+                                Giải thưởng: <strong>{tournament.prize || 'Hấp dẫn'}</strong>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 w-full md:w-auto justify-end border-t md:border-t-0 border-orange-100/60 pt-4 md:pt-0">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTournamentForLeave(tournament)}
+                            className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-4 py-2 rounded-xl transition text-xs border border-red-200 flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">person_remove</span>
+                            Hủy đăng ký giải
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -755,7 +1131,11 @@ const UserProfile = () => {
             </div>
             
             <p className="text-sm text-gray-500 mb-4">
-              Bạn đang đánh giá cho đơn đặt lịch <span className="font-bold text-gray-800">#BK{String(selectedBookingForReview.id).padStart(4, '0')}</span> - {selectedBookingForReview.coach ? `Huấn luyện viên: ${selectedBookingForReview.coach.name}` : `Sân đấu: ${selectedBookingForReview.court?.name || 'Sân Pickleball'}`}.
+              Bạn đang đánh giá cho {selectedBookingForReview._targetType === 'App\\Models\\User' ? (
+                <>Huấn luyện viên: <span className="font-bold text-indigo-700">{selectedBookingForReview.coach?.name || 'HLV'}</span></>
+              ) : (
+                <>Sân đấu: <span className="font-bold text-blue-700">{selectedBookingForReview.court?.name || 'Sân Pickleball'}</span></>
+              )} (Mã đơn <span className="font-bold text-gray-800">#BK{String(selectedBookingForReview.id).padStart(4, '0')}</span>).
             </p>
 
             <form onSubmit={handleReviewSubmit} className="space-y-4">
@@ -821,6 +1201,172 @@ const UserProfile = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Xem Chi Tiết Lịch Đặt Sân (<Extend Case Use> Xem chi tiết lịch đặt) */}
+      {selectedBookingDetail && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-gray-100">
+            {/* Modal Header */}
+            <div className="px-6 py-5 bg-gray-900 text-white flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-green-400 text-2xl">receipt_long</span>
+                <div>
+                  <h3 className="font-bold text-base">Chi Tiết Đơn Đặt Sân #BK{String(selectedBookingDetail.id).padStart(4, '0')}</h3>
+                  <p className="text-xs text-gray-400">Ngày tạo đơn: {selectedBookingDetail.created_at ? new Date(selectedBookingDetail.created_at).toLocaleDateString('vi-VN') : 'Mới tạo'}</p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setSelectedBookingDetail(null)}
+                className="text-gray-400 hover:text-white transition p-1 cursor-pointer"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-5 text-sm">
+              {/* Cụm sân & Khung giờ */}
+              <div className="bg-green-50/70 p-4 rounded-2xl border border-green-100 space-y-2">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-bold text-green-900 text-base">{selectedBookingDetail.court?.name || 'Sân Pickleball Kỳ Hòa (Quận 10)'}</h4>
+                    <p className="text-xs text-green-700 font-medium">Sân chơi tự do Pickleball tiêu chuẩn</p>
+                  </div>
+                  <span className="bg-green-600 text-white font-bold text-[11px] px-2.5 py-1 rounded-full">
+                    {selectedBookingDetail.status === 'completed' ? 'Đã hoàn thành' : selectedBookingDetail.status === 'confirmed' ? 'Đã xác nhận' : selectedBookingDetail.status}
+                  </span>
+                </div>
+
+                <div className="pt-2 border-t border-green-200/60 flex items-center justify-between text-xs text-green-900 font-bold">
+                  <span className="flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[16px]">calendar_today</span>
+                    {selectedBookingDetail.booking_date}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[16px]">schedule</span>
+                    {selectedBookingDetail.start_time} - {selectedBookingDetail.end_time}
+                  </span>
+                </div>
+              </div>
+
+              {/* Thông tin HLV nếu có */}
+              {selectedBookingDetail.coach && (
+                <div className="p-3 bg-blue-50 rounded-xl border border-blue-100 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center">
+                      {selectedBookingDetail.coach.name?.charAt(0) || 'P'}
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-900 text-xs">Thuê Huấn luyện viên: {selectedBookingDetail.coach.name}</p>
+                      <p className="text-[11px] text-gray-500">{selectedBookingDetail.coach.phone || 'Hỗ trợ kỹ thuật 1-on-1'}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Bảng Chi Tiết Thanh Toán & Cọc 50% */}
+              <div className="space-y-2 border-t border-gray-100 pt-4">
+                <h4 className="font-bold text-gray-900 text-xs uppercase tracking-wider">Chi tiết thanh toán</h4>
+                <div className="bg-gray-50 p-4 rounded-2xl space-y-2 text-xs">
+                  <div className="flex justify-between text-gray-600">
+                    <span>Tổng giá trị ca sân & HLV:</span>
+                    <span className="font-bold text-gray-900">{Number(selectedBookingDetail.total_price || 0).toLocaleString('vi-VN')}đ</span>
+                  </div>
+                  <div className="flex justify-between text-emerald-700 font-medium">
+                    <span className="flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">payments</span>
+                      Tiền đặt cọc 50%:
+                    </span>
+                    <span className="font-extrabold">{Number((selectedBookingDetail.total_price || 0) / 2).toLocaleString('vi-VN')}đ</span>
+                  </div>
+                  <div className="flex justify-between text-gray-600">
+                    <span>Trạng thái cọc trực tuyến:</span>
+                    <span className={`font-bold px-2 py-0.5 rounded text-[11px] ${selectedBookingDetail.payment_status === 'paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                      {selectedBookingDetail.payment_status === 'paid' ? 'Đã cọc 50% qua MoMo/VietQR' : 'Chờ đặt cọc'}
+                    </span>
+                  </div>
+                  <div className="pt-2 border-t border-gray-200 flex justify-between font-bold text-sm text-gray-900">
+                    <span>Số tiền còn lại trả tại sân:</span>
+                    <span className="text-blue-600">{Number((selectedBookingDetail.total_price || 0) / 2).toLocaleString('vi-VN')}đ</span>
+                  </div>
+                </div>
+              </div>
+
+              {selectedBookingDetail.notes && (
+                <div className="text-xs bg-amber-50 p-3 rounded-xl border border-amber-100 text-amber-800">
+                  <strong>Ghi chú:</strong> {selectedBookingDetail.notes}
+                </div>
+              )}
+
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setSelectedBookingDetail(null)}
+                  className="px-6 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-bold rounded-xl transition text-xs cursor-pointer shadow-md"
+                >
+                  Đóng cửa sổ
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL XÁC NHẬN HỦY ĐĂNG KÝ GIẢI ĐẤU */}
+      {selectedTournamentForLeave && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 relative overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <button 
+              type="button"
+              onClick={() => setSelectedTournamentForLeave(null)}
+              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+
+            <div className="flex items-center gap-3 text-red-600 mb-4">
+              <span className="material-symbols-outlined text-3xl">warning</span>
+              <h3 className="text-lg font-black">Xác nhận hủy đăng ký</h3>
+            </div>
+            
+            <p className="text-sm text-gray-600 mb-4">
+              Bạn có chắc chắn muốn **hủy đăng ký** tham gia giải đấu này không? Suất đăng ký của bạn sẽ được nhường lại cho đấu thủ khác.
+            </p>
+
+            <div className="bg-orange-50 rounded-2xl p-4 border border-orange-100 mb-6 text-sm text-gray-800">
+              <div className="font-bold text-orange-900 mb-1">
+                {selectedTournamentForLeave.name}
+              </div>
+              <div className="text-xs text-orange-700">
+                Khởi tranh: {selectedTournamentForLeave.start_date} • Địa điểm: {selectedTournamentForLeave.location || 'TP. Hồ Chí Minh'}
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setSelectedTournamentForLeave(null)}
+                className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-bold hover:bg-gray-50 transition text-sm cursor-pointer"
+              >
+                Quay lại
+              </button>
+              <button
+                onClick={handleConfirmLeaveTournament}
+                disabled={submittingLeave}
+                className="flex items-center gap-1.5 bg-red-600 text-white font-bold px-6 py-2.5 rounded-xl hover:bg-red-700 transition shadow-md disabled:opacity-60 disabled:cursor-not-allowed text-sm cursor-pointer"
+              >
+                {submittingLeave ? (
+                  <span className="material-symbols-outlined animate-spin text-[16px]">autorenew</span>
+                ) : (
+                  <span className="material-symbols-outlined text-[16px]">person_remove</span>
+                )}
+                {submittingLeave ? 'Đang hủy...' : 'Xác nhận hủy đăng ký'}
+              </button>
+            </div>
           </div>
         </div>
       )}

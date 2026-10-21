@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import axiosClient from '../../axiosClient';
 import { useToast } from '../../contexts/ToastContext';
 
 // Ràng buộc luồng trạng thái ADMIN (khớp với backend OrderController::ADMIN_TRANSITIONS)
-// Admin không thể tự đặt "delivered" — chỉ khách hàng xác nhận nhận hàng
+// Admin có thể chuyển shipped → delivered khi khách quên bấm xác nhận nhận hàng
 const VALID_TRANSITIONS = {
   pending:    ['processing', 'cancelled'],
   processing: ['shipped', 'cancelled'],
-  shipped:    ['cancelled'],          // Chỉ có thể hủy, không tự đánh "đã giao"
+  shipped:    ['delivered', 'cancelled'], // Admin có thể chủ động xác nhận đã giao thay khách
   delivered:  [],
   cancelled:  [],
 };
@@ -21,6 +22,8 @@ const STATUS_LABELS = {
 };
 
 const ManageOrders = () => {
+  const location = useLocation();
+  const [highlightId, setHighlightId] = useState(null);
   const toast = useToast();
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
@@ -30,6 +33,29 @@ const ManageOrders = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [updatingStatusId, setUpdatingStatusId] = useState(null);
+
+  // Sorting State
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState('asc');
+
+  useEffect(() => {
+    if (location.state?.highlightId && orders.length > 0) {
+      const targetId = Number(location.state.highlightId);
+      setHighlightId(targetId);
+      const targetOrder = orders.find(o => o.id === targetId);
+      if (targetOrder) {
+        setSelectedOrder(targetOrder);
+        setShowDetailModal(true);
+      }
+      // Tự động cuộn mượt xuống đúng đơn hàng được chọn
+      setTimeout(() => {
+        const el = document.getElementById(`order-row-${targetId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 250);
+    }
+  }, [location.state, orders]);
 
   // Fetch all orders and products
   const fetchData = async () => {
@@ -66,14 +92,20 @@ const ManageOrders = () => {
   const handleUpdateStatus = async (id, newStatus, currentStatus) => {
     if (!newStatus) return;
 
+    const targetOrder = orders.find(o => o.id === id);
+    const actualCurrentStatus = currentStatus || targetOrder?.status;
+    if (!actualCurrentStatus || newStatus === actualCurrentStatus) return;
+
     // Kiểm tra ràng buộc phía client trước khi gọi API
-    const allowed = VALID_TRANSITIONS[currentStatus] || [];
+    const allowed = VALID_TRANSITIONS[actualCurrentStatus] || [];
+    const statusLabel = STATUS_LABELS[actualCurrentStatus] || actualCurrentStatus;
+
     if (!allowed.includes(newStatus)) {
       const allowedStr = allowed.map(s => STATUS_LABELS[s]).join(', ');
       toast.error(
         allowed.length === 0
-          ? `Đơn "${STATUS_LABELS[currentStatus]}" không thể thay đổi trạng thái.`
-          : `Không hợp lệ! Từ "${STATUS_LABELS[currentStatus]}" chỉ được chuyển sang: ${allowedStr}.`
+          ? `Đơn "${statusLabel}" không thể thay đổi trạng thái nữa.`
+          : `Không hợp lệ! Từ "${statusLabel}" chỉ được chuyển sang: ${allowedStr}.`
       );
       return;
     }
@@ -96,174 +128,91 @@ const ManageOrders = () => {
     }
   };
 
-  const handleExport = () => {
-    if (orders.length === 0) {
-      toast.warning('Không có dữ liệu đơn hàng để xuất!');
-      return;
-    }
-    // BOM UTF-8 for Vietnamese Excel export
-    let csvContent = '\uFEFF'; // Include BOM for UTF-8 (Vietnamese Excel support)
-    csvContent += 'Mã Đơn,Khách hàng,Email,Số điện thoại,Ngày đặt,Tổng tiền,Trạng thái\n';
-    
-    orders.forEach(order => {
-      const id = `#DH00${order.id}`;
-      const name = order.user?.name || 'Khách vãng lai';
-      const email = order.user?.email || '—';
-      const phone = order.user?.phone || '—';
-      const date = new Date(order.created_at).toLocaleDateString('vi-VN');
-      const total = order.total_amount;
-      let statusStr = 'Chờ xử lý';
-      if (order.status === 'processing') statusStr = 'Đang xử lý';
-      if (order.status === 'shipped') statusStr = 'Đang giao hàng';
-      if (order.status === 'delivered') statusStr = 'Đã giao hàng';
-      if (order.status === 'cancelled') statusStr = 'Đã hủy';
-      
-      csvContent += `"${id}","${name}","${email}","${phone}","${date}",${total},"${statusStr}"\n`;
-    });
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `Bao_Cao_Don_Hang_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    toast.success('Xuất báo cáo đơn hàng dạng CSV thành công!');
-  };
-
-  const handlePrintInvoice = (order) => {
-    const printWindow = window.open('', '_blank');
-    const itemsHtml = order.items.map(item => {
-      const name = getProductName(item.product_id);
-      const subtotal = item.quantity * item.unit_price;
-      return `
-        <tr>
-          <td style="padding: 12px 10px; border-bottom: 1px solid #eee; font-size: 14px;">${name}</td>
-          <td style="padding: 12px 10px; border-bottom: 1px solid #eee; text-align: center; font-size: 14px;">${Number(item.unit_price).toLocaleString('vi-VN')}đ</td>
-          <td style="padding: 12px 10px; border-bottom: 1px solid #eee; text-align: center; font-size: 14px;">${item.quantity}</td>
-          <td style="padding: 12px 10px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold; font-size: 14px; color: #16a34a;">${Number(subtotal).toLocaleString('vi-VN')}đ</td>
-        </tr>
-      `;
-    }).join('');
-
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Hóa đơn mua hàng #DH00${order.id}</title>
-          <style>
-            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; line-height: 1.6; margin: 0; padding: 20px; }
-            .invoice-box { max-width: 800px; margin: auto; padding: 40px; border: 1px solid #eee; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, .05); }
-            .invoice-header { display: flex; justify-content: space-between; border-bottom: 3px solid #16a34a; padding-bottom: 25px; margin-bottom: 30px; }
-            .invoice-title { font-size: 26px; font-weight: 800; color: #16a34a; text-transform: uppercase; letter-spacing: 1px; }
-            .invoice-info { text-align: right; }
-            .invoice-details { display: flex; justify-content: space-between; margin-bottom: 40px; background-color: #f9fafb; padding: 20px; border-radius: 8px; }
-            .details-column { flex: 1; }
-            .details-column strong { color: #111827; display: block; margin-bottom: 8px; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th { background-color: #f3f4f6; padding: 12px 10px; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 12px; text-transform: uppercase; font-weight: 700; color: #4b5563; }
-            .total-row { font-size: 20px; font-weight: 900; text-align: right; padding-top: 30px; color: #16a34a; border-top: 2px solid #e5e7eb; margin-top: 20px; }
-          </style>
-        </head>
-        <body>
-            <div class="invoice-box">
-              <div class="invoice-header">
-                <div>
-                  <div class="invoice-title">PickleBall Pro</div>
-                  <div style="font-size: 13px; color: #6b7280; mt-1;">Hệ Thống Đặt Sân & Cửa Hàng Pickleball Cao Cấp</div>
-                  <div style="font-size: 13px; color: #6b7280;">Địa chỉ: 238 Ba Tháng Hai, Q. 10, TP. HCM | SĐT: 0987.654.321</div>
-                </div>
-                <div class="invoice-info">
-                  <div style="font-weight: 900; font-size: 20px; color: #111827;">HÓA ĐƠN BÁN HÀNG</div>
-                  <div style="font-weight: bold; color: #ef4444; font-size: 14px; margin-top: 4px;">Mã đơn: #DH00${order.id}</div>
-                  <div style="font-size: 13px; color: #6b7280; margin-top: 4px;">Ngày lập: ${new Date(order.created_at).toLocaleDateString('vi-VN')}</div>
-                </div>
-              </div>
-              <div class="invoice-details">
-                <div class="details-column">
-                  <strong>Thông tin người mua:</strong>
-                  <div style="font-size: 14px; font-weight: bold; color: #111827;">${order.user?.name || 'Khách vãng lai'}</div>
-                  <div style="font-size: 13px; color: #4b5563; margin-top: 4px;">Điện thoại: ${order.user?.phone || '—'}</div>
-                  <div style="font-size: 13px; color: #4b5563;">Email: ${order.user?.email || '—'}</div>
-                </div>
-                <div class="details-column" style="text-align: right;">
-                  <strong>Thông tin giao nhận & thanh toán:</strong>
-                  <div style="font-size: 13px; color: #4b5563;">Trạng thái: <span style="font-weight: bold; color: #16a34a;">${
-                    order.status === 'pending' ? 'Chờ xử lý' :
-                    order.status === 'processing' ? 'Đang xử lý' :
-                    order.status === 'shipped' ? 'Đang giao hàng' :
-                    order.status === 'delivered' ? 'Đã giao hàng' : 'Đã hủy'
-                  }</span></div>
-                  <div style="font-size: 13px; color: #4b5563; margin-top: 4px;">Phương thức: ${
-                    order.shipping_details?.paymentMethod === 'cod' ? 'Thanh toán COD' : 'Thanh toán trực tuyến (VNPay)'
-                  }</div>
-                  <div style="font-size: 13px; color: #4b5563; margin-top: 4px;">Hình thức: ${
-                    order.shipping_details?.deliveryMethod === 'counter' ? 'Nhận tại quầy bán CLB' : 'Giao hàng tận nơi'
-                  }</div>
-                  <div style="font-size: 13px; color: #4b5563; margin-top: 4px;">Địa chỉ: ${
-                    order.shipping_details?.address || '—'
-                  }</div>
-                </div>
-              </div>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Tên sản phẩm</th>
-                    <th style="text-align: center;">Đơn giá</th>
-                    <th style="text-align: center;">Số lượng</th>
-                    <th style="text-align: right;">Thành tiền</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${itemsHtml}
-                </tbody>
-              </table>
-              <div class="total-row">
-                TỔNG CỘNG: ${Number(order.total_amount).toLocaleString('vi-VN')}đ
-              </div>
-              <div style="margin-top: 60px; text-align: center; font-size: 12px; color: #9ca3af; border-top: 1px dashed #e5e7eb; padding-top: 20px;">
-                Cảm ơn quý khách đã tin tưởng và đồng hành cùng PickleBall Pro! Hẹn gặp lại quý khách!
-              </div>
-            </div>
-          <script>
-            window.onload = function() { window.print(); }
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-  };
-
   const handleShowDetail = (order) => {
     setSelectedOrder(order);
     setShowDetailModal(true);
   };
 
+  const getProductImage = (productId) => {
+    const p = products.find(prod => prod.id === productId);
+    return p?.image ? `http://127.0.0.1:8000/storage/${p.image}` : 'https://placehold.co/100x100?text=Pickleball';
+  };
+
   const getStatusBadge = (status) => {
-    switch (status) {
-      case 'pending':
-        return <span className="bg-yellow-50 text-yellow-700 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>Chờ xử lý</span>;
-      case 'processing':
-        return <span className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>Đang xử lý</span>;
-      case 'shipped':
-        return <span className="bg-cyan-50 text-cyan-700 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-cyan-500"></span>Đang giao</span>;
-      case 'delivered':
-        return <span className="bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>Hoàn thành</span>;
-      case 'cancelled':
-        return <span className="bg-red-50 text-red-700 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>Đã hủy</span>;
-      default:
-        return <span className="bg-gray-50 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap inline-flex items-center gap-1">Chờ xử lý</span>;
+    const styles = {
+      pending: 'bg-yellow-50 text-yellow-700',
+      processing: 'bg-blue-50 text-blue-700',
+      shipped: 'bg-cyan-50 text-cyan-700',
+      delivered: 'bg-green-50 text-green-700',
+      cancelled: 'bg-red-50 text-red-700'
+    };
+    return (
+      <span className={`${styles[status] || 'bg-gray-50 text-gray-700'} px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase`}>
+        {STATUS_LABELS[status] || status}
+      </span>
+    );
+  };
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
     }
   };
 
   const filteredOrders = orders.filter(order => {
-    const matchSearch = order.id.toString().includes(searchTerm) || 
-                        (order.user?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        (order.user?.phone || '').includes(searchTerm);
-    const matchStatus = filterStatus === 'all' || order.status === filterStatus;
-    return matchSearch && matchStatus;
+    const searchLower = searchTerm.toLowerCase();
+    const orderId = `#DH00${order.id}`.toLowerCase();
+    const userName = order.user?.name?.toLowerCase() || '';
+    const userPhone = order.user?.phone?.toLowerCase() || '';
+
+    const matchesSearch = orderId.includes(searchLower) || userName.includes(searchLower) || userPhone.includes(searchLower);
+    const matchesFilter = filterStatus === 'all' || order.status === filterStatus;
+
+    return matchesSearch && matchesFilter;
   });
+
+  const sortedOrders = [...filteredOrders].sort((a, b) => {
+    if (!sortField) return 0;
+    
+    let aVal = a[sortField];
+    let bVal = b[sortField];
+
+    if (sortField === 'user') {
+      aVal = a.user?.name || '';
+      bVal = b.user?.name || '';
+    }
+
+    if (typeof aVal === 'string') {
+      return sortDirection === 'asc' 
+        ? aVal.localeCompare(bVal, 'vi') 
+        : bVal.localeCompare(aVal, 'vi');
+    }
+
+    if (sortDirection === 'asc') {
+      return aVal > bVal ? 1 : -1;
+    } else {
+      return aVal < bVal ? 1 : -1;
+    }
+  });
+
+  const renderSortHeader = (field, label) => (
+    <th 
+      onClick={() => handleSort(field)} 
+      className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+    >
+      <div className="flex items-center gap-1.5 font-bold text-gray-700 text-xs uppercase tracking-wider">
+        <span>{label}</span>
+        <span className={`material-symbols-outlined text-[16px] transition-transform ${
+          sortField === field ? 'text-green-600 opacity-100' : 'text-gray-400 opacity-0 group-hover:opacity-100'
+        } ${sortField === field && sortDirection === 'desc' ? 'rotate-180' : ''}`}>
+          arrow_upward
+        </span>
+      </div>
+    </th>
+  );
 
   return (
     <div className="relative">
@@ -272,10 +221,6 @@ const ManageOrders = () => {
           <h1 className="text-2xl font-bold text-gray-900">Quản lý Đơn hàng</h1>
           <p className="text-sm text-gray-500 mt-1">Quản lý và cập nhật trạng thái các đơn hàng mua sản phẩm thể thao.</p>
         </div>
-        <button onClick={handleExport} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm flex items-center gap-2 transition-all cursor-pointer border-0">
-          <span className="material-symbols-outlined text-[18px]">download</span>
-          Xuất báo cáo
-        </button>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -287,96 +232,105 @@ const ManageOrders = () => {
               type="text" 
               placeholder="Tìm kiếm theo mã đơn, khách hàng hoặc số điện thoại..." 
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-white border border-gray-200 rounded-xl pl-11 pr-4 py-3 text-sm outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500/20 transition-all placeholder:text-gray-400" 
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition"
             />
           </div>
-          <select 
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none bg-white focus:border-green-500 focus:ring-1 focus:ring-green-500/20 transition-all font-semibold text-gray-700 cursor-pointer"
-          >
-            <option value="all">Tất cả trạng thái</option>
-            <option value="pending">Chờ xử lý</option>
-            <option value="processing">Đang xử lý</option>
-            <option value="shipped">Đang giao hàng</option>
-            <option value="delivered">Đã giao hàng</option>
-            <option value="cancelled">Đã hủy</option>
-          </select>
+
+          <div className="flex gap-3">
+            <select
+              value={filterStatus}
+              onChange={e => setFilterStatus(e.target.value)}
+              className="bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-green-500 font-medium text-gray-700 cursor-pointer"
+            >
+              <option value="all">Tất cả trạng thái ({orders.length})</option>
+              <option value="pending">Chờ xử lý ({orders.filter(o => o.status === 'pending').length})</option>
+              <option value="processing">Đang xử lý ({orders.filter(o => o.status === 'processing').length})</option>
+              <option value="shipped">Đang giao hàng ({orders.filter(o => o.status === 'shipped').length})</option>
+              <option value="delivered">Đã giao hàng ({orders.filter(o => o.status === 'delivered').length})</option>
+              <option value="cancelled">Đã hủy ({orders.filter(o => o.status === 'cancelled').length})</option>
+            </select>
+          </div>
         </div>
 
-        {/* Bảng đơn hàng */}
-        {loading ? (
-          <div className="flex flex-col justify-center items-center py-24">
-            <span className="material-symbols-outlined animate-spin text-5xl text-green-600 mb-3">refresh</span>
-            <span className="text-gray-500 font-medium">Đang tải danh sách đơn hàng...</span>
-          </div>
-        ) : filteredOrders.length === 0 ? (
-          <div className="text-center py-20 bg-white flex flex-col items-center justify-center">
-            <span className="material-symbols-outlined text-5xl text-gray-300 block mb-2">receipt_long</span>
-            <p className="text-gray-500 font-medium">Không tìm thấy đơn hàng nào phù hợp.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-gray-500 border-b border-gray-100">
+        {/* Bảng danh sách đơn hàng */}
+        <div className="overflow-x-auto">
+          {loading ? (
+            <div className="p-12 text-center text-gray-400 text-sm flex flex-col items-center gap-3">
+              <span className="material-symbols-outlined animate-spin text-3xl text-green-600">autorenew</span>
+              Đang tải danh sách đơn hàng...
+            </div>
+          ) : sortedOrders.length === 0 ? (
+            <div className="p-12 text-center text-gray-400 text-sm">
+              <span className="material-symbols-outlined text-5xl text-gray-300 block mb-2">receipt_long</span>
+              {searchTerm || filterStatus !== 'all' ? 'Không tìm thấy đơn hàng nào phù hợp với bộ lọc.' : 'Chưa có đơn hàng nào trong hệ thống.'}
+            </div>
+          ) : (
+            <table className="w-full text-left text-sm text-gray-600">
+              <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider">Mã Đơn</th>
-                  <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider">Khách hàng</th>
-                  <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider">Ngày đặt</th>
-                  <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider">Tổng tiền</th>
-                  <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider">Trạng thái</th>
-                  <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider text-right">Thao tác</th>
+                  {renderSortHeader('id', 'Mã Đơn')}
+                  {renderSortHeader('user', 'Khách hàng')}
+                  {renderSortHeader('created_at', 'Ngày đặt')}
+                  {renderSortHeader('total_amount', 'Tổng tiền')}
+                  {renderSortHeader('status', 'Trạng thái')}
+                  <th className="px-6 py-4 text-right font-bold text-gray-700 text-xs uppercase tracking-wider">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4 font-extrabold text-gray-500">#DH00{order.id}</td>
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-gray-900">{order.user?.name || 'Khách vãng lai'}</div>
-                      <div className="text-xs text-gray-400 font-medium">{order.user?.phone || 'Chưa cập nhật SĐT'}</div>
+                {sortedOrders.map((order) => (
+                  <tr 
+                    key={order.id} 
+                    id={`order-row-${order.id}`}
+                    className={order.id === highlightId ? "bg-blue-100/90 border-l-4 border-blue-500 font-extrabold shadow-sm transition-all animate-pulse" : "hover:bg-gray-50/80 transition"}
+                  >
+                    <td className="px-6 py-4 font-bold text-gray-900">
+                      #DH00{order.id}
                     </td>
-                    <td className="px-6 py-4 text-gray-600 font-medium">
-                      {new Date(order.created_at).toLocaleDateString('vi-VN')}
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-gray-900">{order.user?.name || 'Khách vãng lai'}</div>
+                      <div className="text-xs text-gray-400 font-light">{order.user?.phone || order.user?.email || 'Chưa có SĐT'}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="font-extrabold text-green-600 text-sm">
-                        {Number(order.total_amount).toLocaleString('vi-VN')}đ
+                      <div className="text-gray-900 font-medium">
+                        {new Date(order.created_at).toLocaleDateString('vi-VN')}
                       </div>
-                      <div className="text-xs text-gray-400 font-light mt-0.5">({order.items?.length || 0} sản phẩm)</div>
+                      <div className="text-xs text-gray-400 font-light">
+                        {new Date(order.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 font-extrabold text-green-600 text-sm">
+                      {Number(order.total_amount).toLocaleString('vi-VN')}đ
                     </td>
                     <td className="px-6 py-4">
                       {getStatusBadge(order.status)}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end items-center gap-3">
-                        {updatingStatusId === order.id ? (
-                          <span className="material-symbols-outlined animate-spin text-green-600 text-[18px]">autorenew</span>
+                      <div className="flex justify-end gap-2">
+                        <button 
+                          onClick={() => handleShowDetail(order)}
+                          className="text-gray-600 hover:text-green-600 flex items-center p-1.5 bg-gray-100 hover:bg-green-50 rounded-lg transition cursor-pointer border-0"
+                          title="Xem chi tiết đơn"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">visibility</span>
+                        </button>
+
+                        {(VALID_TRANSITIONS[order.status] || []).length > 0 ? (
+                          <select
+                            value={order.status}
+                            disabled={updatingStatusId === order.id}
+                            onChange={e => handleUpdateStatus(order.id, e.target.value, order.status)}
+                            className="bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs font-semibold text-gray-700 outline-none focus:border-green-500 cursor-pointer disabled:opacity-50"
+                          >
+                            <option value={order.status} disabled>{STATUS_LABELS[order.status] || order.status}</option>
+                            {(VALID_TRANSITIONS[order.status] || []).map(s => (
+                              <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                            ))}
+                          </select>
                         ) : (
-                          <>
-                            <button 
-                              onClick={() => handleShowDetail(order)} 
-                              className="text-blue-600 font-bold hover:text-blue-800 text-xs bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition border-0 cursor-pointer"
-                            >
-                              Chi tiết
-                            </button>
-                            {/* Dropdown chỉ hiển thị các trạng thái cho phép */}
-                            {(VALID_TRANSITIONS[order.status] || []).length > 0 ? (
-                              <select 
-                                onChange={(e) => handleUpdateStatus(order.id, e.target.value, order.status)} 
-                                className="border border-gray-200 rounded-lg text-xs px-2.5 py-1.5 bg-white outline-none text-gray-600 cursor-pointer hover:border-green-500 transition-colors font-semibold shadow-xs"
-                                value=""
-                              >
-                                <option value="" disabled>Cập nhật</option>
-                                {(VALID_TRANSITIONS[order.status] || []).map(s => (
-                                  <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-                                ))}
-                              </select>
-                            ) : (
-                              <span className="text-xs text-gray-400 italic px-2">Đã kết thúc</span>
-                            )}
-                          </>
+                          <span className="text-[11px] text-gray-400 font-medium italic px-2 py-1 bg-gray-100 text-gray-500 rounded-md">
+                            Đã khóa
+                          </span>
                         )}
                       </div>
                     </td>
@@ -384,40 +338,36 @@ const ManageOrders = () => {
                 ))}
               </tbody>
             </table>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* MODAL CHI TIẾT ĐƠN HÀNG PREMIUM */}
+      {/* CHI TIẾT ĐƠN HÀNG MODAL */}
       {showDetailModal && selectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-150 flex flex-col max-h-[90vh]">
             
-            {/* Header */}
-            <div className="bg-green-600 p-6 text-white flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                  <span className="material-symbols-outlined text-2xl">receipt_long</span>
+            {/* Header Modal */}
+            <div className="p-6 bg-gradient-to-r from-gray-900 to-green-900 text-white flex justify-between items-center shrink-0">
+              <div>
+                <div className="flex items-center gap-3">
+                  <h3 className="text-xl font-bold">Chi Tiết Đơn Hàng #DH00{selectedOrder.id}</h3>
+                  {getStatusBadge(selectedOrder.status)}
                 </div>
-                <div>
-                  <h3 className="text-lg font-black tracking-wide flex items-center gap-2">
-                    CHI TIẾT ĐƠN HÀNG #DH00{selectedOrder.id}
-                  </h3>
-                  <p className="text-green-100 text-xs mt-0.5">Đặt ngày: {new Date(selectedOrder.created_at).toLocaleDateString('vi-VN')} | Giờ: {new Date(selectedOrder.created_at).toLocaleTimeString('vi-VN')}</p>
-                </div>
+                <p className="text-xs text-gray-300 mt-1">Đặt lúc: {new Date(selectedOrder.created_at).toLocaleString('vi-VN')}</p>
               </div>
               <button 
-                onClick={() => { setShowDetailModal(false); setSelectedOrder(null); }} 
-                className="text-white/80 hover:text-white hover:bg-white/10 p-1.5 rounded-full transition cursor-pointer border-0 bg-transparent flex items-center"
+                onClick={() => { setShowDetailModal(false); setSelectedOrder(null); }}
+                className="text-white/80 hover:text-white border-0 bg-transparent cursor-pointer p-1"
               >
-                <span className="material-symbols-outlined">close</span>
+                <span className="material-symbols-outlined text-2xl">close</span>
               </button>
             </div>
 
-            {/* Body */}
-            <div className="p-6 overflow-y-auto flex-grow space-y-6">
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-6 flex-1">
               
-              {/* Grid 2 cột thông tin khách hàng và thanh toán */}
+              {/* Thông tin khách hàng & Giao hàng */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
                   <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
@@ -579,17 +529,11 @@ const ManageOrders = () => {
             </div>
 
             {/* Footer Actions */}
-            <div className="p-6 border-t border-gray-100 bg-gray-50 flex gap-3 shrink-0">
+            <div className="p-6 border-t border-gray-100 bg-gray-50 shrink-0">
               <button 
-                onClick={() => handlePrintInvoice(selectedOrder)}
-                className="flex-1 bg-white hover:bg-gray-100 text-gray-700 font-bold py-3.5 px-4 rounded-xl border border-gray-200 shadow-xs flex items-center justify-center gap-2 cursor-pointer transition"
-              >
-                <span className="material-symbols-outlined text-[20px] text-green-600">print</span>
-                In Hóa Đơn
-              </button>
-              <button 
+                type="button"
                 onClick={() => { setShowDetailModal(false); setSelectedOrder(null); }}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md cursor-pointer transition flex items-center justify-center"
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md cursor-pointer transition flex items-center justify-center border-0"
               >
                 Đóng hộp thoại
               </button>

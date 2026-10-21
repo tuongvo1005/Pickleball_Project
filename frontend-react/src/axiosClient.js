@@ -23,10 +23,10 @@ axiosClient.interceptors.response.use(
   (error) => {
     try {
       const { response } = error;
-      // Nếu token hết hạn hoặc không hợp lệ, xóa token khỏi local storage
+      // Nếu token hết hạn hoặc không hợp lệ, xóa sạch dữ liệu đăng nhập
       if (response && response.status === 401) {
         localStorage.removeItem('ACCESS_TOKEN');
-        // Option: window.location.href = '/login';
+        localStorage.removeItem('user_info');
       }
     } catch (e) {
       console.error(e);

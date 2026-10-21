@@ -37,6 +37,89 @@ const Navbar = () => {
     navigate('/');
   };
 
+  // Trạng thái thông báo HỦY SÂN / HỦY ĐƠN HÀNG nổi bật cho User
+  const [cancelModalData, setCancelModalData] = useState(null);
+
+  const checkUserCancellations = async () => {
+    if (!user || user.role === 'admin') return;
+    
+    try {
+      let dismissedIds = [];
+      try {
+        dismissedIds = JSON.parse(localStorage.getItem(`dismissed_cancel_notifs_${user.id}`) || '[]');
+      } catch (e) {
+        dismissedIds = [];
+      }
+
+      // Fetch user bookings & orders
+      const [bookingsRes, ordersRes] = await Promise.all([
+        axiosClient.get('/bookings').catch(() => ({ data: { data: [] } })),
+        axiosClient.get('/orders').catch(() => ({ data: { data: [] } }))
+      ]);
+
+      const myBookings = (bookingsRes.data?.data || []).filter(b => 
+        b.user_id?.toString() === user.id?.toString() && b.status === 'cancelled'
+      );
+
+      const myOrders = (ordersRes.data?.data || []).filter(o => 
+        o.user_id?.toString() === user.id?.toString() && o.status === 'cancelled'
+      );
+
+      // Tìm đơn đầu tiên bị hủy chưa bấm "Đã hiểu"
+      const unacknowledgedBooking = myBookings.find(b => !dismissedIds.includes(`booking-${b.id}`));
+      if (unacknowledgedBooking) {
+        setCancelModalData({
+          type: 'booking',
+          id: unacknowledgedBooking.id,
+          notifKey: `booking-${unacknowledgedBooking.id}`,
+          code: `#BK${String(unacknowledgedBooking.id).padStart(4, '0')}`,
+          title: 'Thông báo HỦY LỊCH ĐẶT SÂN từ Ban Quản Trị CLB',
+          detailName: unacknowledgedBooking.court?.name || 'Lịch đặt sân Pickleball',
+          dateStr: `${unacknowledgedBooking.start_time || ''} - ${unacknowledgedBooking.end_time || ''} (${unacknowledgedBooking.booking_date || ''})`,
+          note: unacknowledgedBooking.notes || 'Lịch đặt sân của bạn đã được hủy theo yêu cầu hoặc do sự cố bảo trì sân.',
+          link: '/profile'
+        });
+        return;
+      }
+
+      const unacknowledgedOrder = myOrders.find(o => !dismissedIds.includes(`order-${o.id}`));
+      if (unacknowledgedOrder) {
+        setCancelModalData({
+          type: 'order',
+          id: unacknowledgedOrder.id,
+          notifKey: `order-${unacknowledgedOrder.id}`,
+          code: `#ORD${String(unacknowledgedOrder.id).padStart(4, '0')}`,
+          title: 'Thông báo HỦY ĐƠN HÀNG SHOP từ Ban Quản Trị CLB',
+          detailName: `Đơn hàng shop ${Number(unacknowledgedOrder.total_amount || 0).toLocaleString('vi-VN')}đ`,
+          dateStr: unacknowledgedOrder.created_at ? new Date(unacknowledgedOrder.created_at).toLocaleString('vi-VN') : 'Vừa qua',
+          note: unacknowledgedOrder.shipping_details?.note || 'Đơn hàng của bạn đã bị hủy. Vui lòng liên hệ quản trị viên để biết thêm chi tiết.',
+          link: '/my-orders'
+        });
+        return;
+      }
+    } catch (err) {
+      console.error("Lỗi kiểm tra thông báo hủy đơn:", err);
+    }
+  };
+
+  useEffect(() => {
+    checkUserCancellations();
+    const interval = setInterval(checkUserCancellations, 4000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  const handleDismissCancelModal = () => {
+    if (!cancelModalData || !user) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(`dismissed_cancel_notifs_${user.id}`) || '[]');
+      const updated = Array.from(new Set([...saved, cancelModalData.notifKey]));
+      localStorage.setItem(`dismissed_cancel_notifs_${user.id}`, JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
+    setCancelModalData(null);
+  };
+
   // Cập nhật số lượng giỏ hàng từ localStorage
   const updateCartCount = () => {
     if (!user) { setCartCount(0); return; }
@@ -234,6 +317,88 @@ const Navbar = () => {
           </div>
         </div>
       </div>
+
+      {/* ===== POPUP THÔNG BÁO HỦY SÂN / HỦY ĐƠN HÀNG TO NỔI BẬT DÀNH CHO USER ===== */}
+      {cancelModalData && (
+        <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-red-200 flex flex-col">
+            
+            {/* Header Modal - Gradient Đỏ Nổi Bật */}
+            <div className="p-6 bg-gradient-to-r from-red-600 via-rose-600 to-red-800 text-white flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 shadow-inner">
+                <span className="material-symbols-outlined text-3xl animate-bounce text-white">event_busy</span>
+              </div>
+              <div>
+                <span className="bg-red-950/70 text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full border border-red-400/40">
+                  Thông báo từ Ban Quản Trị CLB
+                </span>
+                <h3 className="text-base sm:text-lg font-extrabold mt-1 text-white leading-snug">
+                  {cancelModalData.title}
+                </h3>
+              </div>
+            </div>
+
+            {/* Content Body */}
+            <div className="p-6 space-y-4 text-gray-700 text-sm">
+              <div className="bg-red-50/80 border border-red-200 rounded-2xl p-4 space-y-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-red-700 font-bold uppercase tracking-wider">Mã chứng từ:</span>
+                  <span className="font-black text-red-900 text-base">{cancelModalData.code}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-600 font-semibold">Đối tượng:</span>
+                  <span className="font-bold text-gray-900">{cancelModalData.detailName}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-600 font-semibold">Thời gian:</span>
+                  <span className="font-medium text-gray-800">{cancelModalData.dateStr}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[15px] text-red-500">info</span>
+                  Nội dung / Lý do thông báo từ Admin:
+                </label>
+                <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 text-xs font-semibold text-gray-800 italic leading-relaxed">
+                  "{cancelModalData.note}"
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-xs text-amber-800 flex items-start gap-2">
+                <span className="material-symbols-outlined text-[18px] text-amber-600 shrink-0">support_agent</span>
+                <span>Nếu bạn cần hoàn tiền hoặc hỗ trợ xếp ca chơi mới, vui lòng bấm vào nút Chat phía góc phải bên dưới để liên hệ Quản trị viên.</span>
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="p-5 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const link = cancelModalData.link;
+                  handleDismissCancelModal();
+                  navigate(link);
+                }}
+                className="flex-1 bg-white hover:bg-gray-100 text-gray-800 font-bold py-3.5 px-4 rounded-xl border border-gray-200 shadow-2xs flex items-center justify-center gap-1.5 transition cursor-pointer text-xs"
+              >
+                <span className="material-symbols-outlined text-[18px] text-blue-600">visibility</span>
+                Xem chi tiết đơn của tôi
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDismissCancelModal}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md flex items-center justify-center gap-1.5 transition cursor-pointer border-0 text-xs"
+              >
+                <span className="material-symbols-outlined text-[18px]">done_all</span>
+                Đã hiểu &amp; Đóng thông báo
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </nav>
   );
 };

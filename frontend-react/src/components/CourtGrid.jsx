@@ -41,7 +41,7 @@ const CourtGrid = ({ searchTerm = '', selectedTimeSlot = 'Tất cả các giờ'
   // Online Payment States
   const [isPayingOnline, setIsPayingOnline] = useState(false);
   const [createdBooking, setCreatedBooking] = useState(null);
-  const [paymentTimeLeft, setPaymentTimeLeft] = useState(300);
+  const [paymentTimeLeft, setPaymentTimeLeft] = useState(600);
   const [onlinePaymentStep, setOnlinePaymentStep] = useState('waiting'); // waiting, processing, success
   const [activePaymentMethod, setActivePaymentMethod] = useState('momo'); // momo, vietqr
 
@@ -172,10 +172,18 @@ const CourtGrid = ({ searchTerm = '', selectedTimeSlot = 'Tất cả các giờ'
     axiosClient.get('/bookings')
       .then(response => {
         const allBookings = response.data.data || [];
-        const courtBookings = allBookings.filter(b => 
-          b.court_id?.toString() === selectedCourt.id.toString() && 
-          (b.payment_status === 'paid' || b.payment_status === 'pending')
-        );
+        const now = new Date();
+        const courtBookings = allBookings.filter(b => {
+          if (b.court_id?.toString() !== selectedCourt.id.toString()) return false;
+          if (b.status === 'cancelled' || b.payment_status === 'failed') return false;
+          if (b.payment_status === 'paid') return true;
+          if (b.payment_status === 'pending') {
+            const createdAt = new Date(b.created_at || b.updated_at);
+            const diffMinutes = (now - createdAt) / (1000 * 60);
+            return diffMinutes < 10;
+          }
+          return false;
+        });
         setExistingBookings(courtBookings);
       })
       .catch(err => {
@@ -206,7 +214,12 @@ const CourtGrid = ({ searchTerm = '', selectedTimeSlot = 'Tất cả các giờ'
   }, [selectedDate]);
 
   const handleBookingClick = (court) => {
-    if (!user) {
+    if (court.status === 'maintenance') {
+      toast.warning('Sân này đang trong thời gian bảo trì, quý khách không thể truy cập hoặc đặt lịch!');
+      return;
+    }
+    const token = localStorage.getItem('ACCESS_TOKEN');
+    if (!user || !user.id || !token) {
       toast.warning('Vui lòng đăng nhập để thực hiện tính năng đặt sân!');
       navigate('/login');
       return;
@@ -217,6 +230,17 @@ const CourtGrid = ({ searchTerm = '', selectedTimeSlot = 'Tất cả các giờ'
   };
 
   const handleCloseModal = () => {
+    if (isPayingOnline && createdBooking && onlinePaymentStep === 'waiting') {
+      axiosClient.put(`/bookings/${createdBooking.id}`, {
+        status: 'cancelled',
+        payment_status: 'failed'
+      })
+      .then(() => {
+        toast.info("Đã hủy quá trình đặt cọc và giải phóng ca chơi.");
+        fetchAllBookings();
+      })
+      .catch(err => console.error("Lỗi giải phóng ca tạm giữ:", err));
+    }
     setSelectedCourt(null);
     setModalDate(getTodayString());
     setModalStartTime('08:00');
@@ -224,7 +248,7 @@ const CourtGrid = ({ searchTerm = '', selectedTimeSlot = 'Tất cả các giờ'
     setIsPayingOnline(false);
     setCreatedBooking(null);
     setOnlinePaymentStep('waiting');
-    setPaymentTimeLeft(300);
+    setPaymentTimeLeft(600);
     setActivePaymentMethod('momo');
   };
 
@@ -237,6 +261,10 @@ const CourtGrid = ({ searchTerm = '', selectedTimeSlot = 'Tất cả các giờ'
         setPaymentTimeLeft(prev => {
           if (prev <= 1) {
             clearInterval(timer);
+            toast.error("Thời gian tạm giữ chỗ (10 phút) đã hết! Ca chơi đã được giải phóng cho người khác.");
+            setIsPayingOnline(false);
+            setCreatedBooking(null);
+            fetchCourtBookings();
             return 0;
           }
           return prev - 1;
@@ -276,7 +304,8 @@ const CourtGrid = ({ searchTerm = '', selectedTimeSlot = 'Tất cả các giờ'
   };
 
   const confirmBooking = () => {
-    if (!user) {
+    const token = localStorage.getItem('ACCESS_TOKEN');
+    if (!user || !user.id || !token) {
       toast.warning('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!');
       navigate('/login');
       return;
@@ -293,7 +322,7 @@ const CourtGrid = ({ searchTerm = '', selectedTimeSlot = 'Tất cả các giờ'
     }
 
     if (isSlotDisabled(modalStartTime)) {
-      toast.error('Khung giờ này đã được đặt hoặc đã trôi qua! Vui lòng chọn giờ bắt đầu khác.');
+      toast.error('Khung giờ này đang được tạm giữ hoặc đã có khách đặt! Vui lòng chọn giờ bắt đầu khác.');
       return;
     }
 
@@ -322,7 +351,7 @@ const CourtGrid = ({ searchTerm = '', selectedTimeSlot = 'Tất cả các giờ'
       setCreatedBooking(booking);
       setIsPayingOnline(true);
       setOnlinePaymentStep('waiting');
-      setPaymentTimeLeft(300);
+      setPaymentTimeLeft(600); // 10 phút tạm giữ
       setBookingLoading(false);
       fetchAllBookings();
     })
@@ -347,7 +376,11 @@ const CourtGrid = ({ searchTerm = '', selectedTimeSlot = 'Tất cả các giờ'
 
   // Hàm trả về trạng thái khung giờ khả dụng cho sân (phục vụ bộ lọc)
   const getCourtTimeSlots = (courtId) => {
-    const targetDate = selectedDate || getTodayString();
+    const todayStr = getTodayString();
+    const targetDate = selectedDate || todayStr;
+    const now = new Date();
+    const currentHours = now.getHours();
+    const currentMinutes = now.getMinutes();
     
     const slots = [
       { time: '06:00 - 07:30', start: '06:00', end: '07:30', period: 'Sáng' },
@@ -364,7 +397,8 @@ const CourtGrid = ({ searchTerm = '', selectedTimeSlot = 'Tất cả các giờ'
     const courtBookingsOnDate = allBookings.filter(b => 
       b.court_id?.toString() === courtId.toString() && 
       b.booking_date === targetDate &&
-      (b.payment_status === 'paid' || b.payment_status === 'pending')
+      b.status !== 'cancelled' &&
+      b.payment_status !== 'failed'
     );
 
     return slots.map(slot => {
@@ -372,6 +406,16 @@ const CourtGrid = ({ searchTerm = '', selectedTimeSlot = 'Tất cả các giờ'
       const [slotEndH, slotEndM] = slot.end.split(':').map(Number);
       const slotStartMin = slotStartH * 60 + slotStartM;
       const slotEndMin = slotEndH * 60 + slotEndM;
+
+      // Kiểm tra giờ đã trôi qua nếu chọn ngày hôm nay
+      let isPast = false;
+      if (targetDate < todayStr) {
+        isPast = true;
+      } else if (targetDate === todayStr) {
+        if (currentHours > slotStartH || (currentHours === slotStartH && currentMinutes >= slotStartM)) {
+          isPast = true;
+        }
+      }
 
       const isBooked = courtBookingsOnDate.some(b => {
         const [bStartH, bStartM] = b.start_time.split(':').map(Number);
@@ -385,26 +429,44 @@ const CourtGrid = ({ searchTerm = '', selectedTimeSlot = 'Tất cả các giờ'
       return {
         time: slot.time,
         period: slot.period,
-        status: isBooked ? 'Đã đặt' : 'Trống'
+        isPast: isPast,
+        status: isPast ? 'Đã qua' : (isBooked ? 'Đã đặt' : 'Trống')
       };
     });
   };
 
   const getFilteredCourts = () => {
-    return courts.filter(court => {
-      // 1. Lọc theo địa điểm
-      const nameMatch = court.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const locationMatch = getCourtLocation(court.name).toLowerCase().includes(searchTerm.toLowerCase());
-      const textMatch = nameMatch || locationMatch;
+    return courts.filter((court, index) => {
+      // 1. Lọc theo tên sân / địa điểm / ID / Số thứ tự "Sân số X" / Loại sân
+      if (searchTerm && searchTerm.trim() !== '') {
+        const term = searchTerm.trim().toLowerCase();
+        
+        // Match trực tiếp tên sân hoặc vị trí
+        const nameMatch = court.name.toLowerCase().includes(term);
+        const locationMatch = getCourtLocation(court.name).toLowerCase().includes(term);
+        const idMatch = court.id.toString() === term;
 
-      if (!textMatch) return false;
+        // Match số thứ tự "Sân 1", "Sân số 1", "Sân 2", "Sân số 2"...
+        const digitMatch = term.match(/\d+/);
+        const num = digitMatch ? digitMatch[0] : null;
+        const courtNumMatch = num ? (court.id.toString() === num || (index + 1).toString() === num) : false;
 
-      // 2. Lọc theo khung giờ trống khả dụng
+        // Match theo loại sân ("Trong nhà", "Ngoài trời")
+        const isOutdoorTerm = term.includes('ngoại') || term.includes('outdoor');
+        const isIndoorTerm = term.includes('trong') || term.includes('indoor');
+        const typeMatch = (isOutdoorTerm && (court.type === 'outdoor' || court.type === 'ngoai-troi')) ||
+                          (isIndoorTerm && (court.type === 'indoor' || court.type === 'trong-nha'));
+
+        const textMatch = nameMatch || locationMatch || idMatch || courtNumMatch || typeMatch;
+
+        if (!textMatch) return false;
+      }
+
+      // 2. Lọc theo khung giờ trống khả dụng (Phải chưa qua giờ và chưa bị ai đặt)
       const slots = getCourtTimeSlots(court.id);
       
       if (!selectedTimeSlot || selectedTimeSlot === 'Tất cả các giờ') {
-        // Chỉ hiện sân còn ít nhất 1 khung giờ trống trong ngày đó
-        return slots.some(slot => slot.status === 'Trống');
+        return true;
       }
 
       const periodMap = {
@@ -414,7 +476,9 @@ const CourtGrid = ({ searchTerm = '', selectedTimeSlot = 'Tất cả các giờ'
       };
 
       const targetPeriod = periodMap[selectedTimeSlot];
-      // Một sân được coi là khả dụng nếu nó có ít nhất một khung giờ trống trong khoảng thời gian được chọn
+      if (!targetPeriod) return true;
+
+      // Một sân được coi là khả dụng nếu nó có ít nhất một khung giờ TRỐNG và CHƯA QUA GIỜ
       return slots.some(slot => slot.period === targetPeriod && slot.status === 'Trống');
     });
   };
@@ -476,11 +540,19 @@ const CourtGrid = ({ searchTerm = '', selectedTimeSlot = 'Tất cả các giờ'
               <div className="p-6 w-full md:w-3/5 flex flex-col">
                 <div className="flex justify-between items-start gap-4 mb-2">
                   <h3 className="text-xl font-bold text-gray-900 flex-grow">{court.name}</h3>
-                  <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full shrink-0 whitespace-nowrap uppercase tracking-wider ${
-                    court.type === 'trong-nha' || court.type === 'indoor' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 border border-gray-200'
-                  }`}>
-                    {court.type === 'trong-nha' || court.type === 'indoor' ? 'Trong nhà' : 'Ngoài trời'}
-                  </span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full shrink-0 whitespace-nowrap uppercase tracking-wider ${
+                      court.type === 'trong-nha' || court.type === 'indoor' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 border border-gray-200'
+                    }`}>
+                      {court.type === 'trong-nha' || court.type === 'indoor' ? 'Trong nhà' : 'Ngoài trời'}
+                    </span>
+                    {court.status === 'maintenance' && (
+                      <span className="bg-amber-100 text-amber-800 border border-amber-300 font-extrabold text-[9px] px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[12px]">construction</span>
+                        Đang bảo trì
+                      </span>
+                    )}
+                  </div>
                 </div>
                 
                 <p className="text-sm text-gray-500 mb-6 flex items-center gap-1">
@@ -496,17 +568,35 @@ const CourtGrid = ({ searchTerm = '', selectedTimeSlot = 'Tất cả các giờ'
                   
                   <div className="flex gap-2 flex-wrap">
                     <button 
-                      onClick={() => navigate(`/courts/${court.id}`)}
+                      onClick={() => {
+                        if (court.status === 'maintenance') {
+                          toast.warning('Sân này đang trong thời gian bảo trì, quý khách không thể truy cập hoặc đặt lịch!');
+                          return;
+                        }
+                        navigate(`/courts/${court.id}`);
+                      }}
                       className="flex-1 py-2 text-sm font-semibold rounded-lg border border-green-600 text-green-600 hover:bg-green-50 transition-colors cursor-pointer"
                     >
                       Chi tiết
                     </button>
-                    <button 
-                      onClick={() => handleBookingClick(court)}
-                      className="flex-1 py-2 text-sm font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors shadow-sm cursor-pointer"
-                    >
-                      Đặt sân
-                    </button>
+                    {court.status === 'maintenance' ? (
+                      <button 
+                        onClick={() => {
+                          toast.warning('Sân này đang trong thời gian bảo trì, quý khách không thể truy cập hoặc đặt lịch!');
+                        }}
+                        className="flex-1 py-2 text-sm font-semibold rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors shadow-sm cursor-pointer flex items-center justify-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">construction</span>
+                        Đang bảo trì
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => handleBookingClick(court)}
+                        className="flex-1 py-2 text-sm font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors shadow-sm cursor-pointer"
+                      >
+                        Đặt sân
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -676,7 +766,10 @@ const CourtGrid = ({ searchTerm = '', selectedTimeSlot = 'Tất cả các giờ'
                   <div className="space-y-3">
                     <div className="flex items-center justify-center gap-2 bg-amber-50 text-amber-800 px-3.5 py-2.5 rounded-xl border border-amber-200 text-xs font-semibold">
                       <span className="material-symbols-outlined animate-spin text-[16px]">hourglass_empty</span>
-                      Đang chờ giao dịch... ({Math.floor(paymentTimeLeft / 60)}:{String(paymentTimeLeft % 60).padStart(2, '0')})
+                      Đang tạm giữ ca chơi trong 10 phút ({Math.floor(paymentTimeLeft / 60)}:{String(paymentTimeLeft % 60).padStart(2, '0')})
+                    </div>
+                    <div className="text-[10px] text-amber-700 bg-amber-50/50 p-2.5 rounded-xl border border-amber-100/50 text-center leading-relaxed font-medium">
+                      ⏱️ Ca chơi này đã được <strong>tạm giữ chỗ riêng cho bạn trong 10 phút</strong>. Vui lòng hoàn tất cọc trước khi hết giờ.
                     </div>
 
                     <button 

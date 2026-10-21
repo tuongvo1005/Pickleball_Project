@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axiosClient from '../axiosClient';
 import { useAuthContext } from '../contexts/AuthContext';
@@ -187,12 +187,44 @@ const Login = () => {
   };
 
   // Nút Quick Login dùng để test nhanh (Dành cho Giảng viên chấm bài)
-  const quickLogin = (testEmail, testPassword) => {
+  const quickLogin = async (testEmail, testPassword) => {
     setEmail(testEmail);
     setPassword(testPassword);
-    setTimeout(() => {
-       document.getElementById('submitBtn').click();
-    }, 100);
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await axiosClient.post('/login', {
+        email: testEmail,
+        password: testPassword
+      });
+
+      const userData = response.data.data;
+      const token = response.data.access_token;
+
+      setToken(token);
+      setUser(userData);
+
+      setSuccess('Đăng nhập thành công! Đang chuyển hướng...');
+
+      setTimeout(() => {
+        if (userData.role === 'admin') {
+          navigate('/admin');
+        } else {
+          navigate('/');
+        }
+      }, 800);
+    } catch (err) {
+      console.error(err);
+      if (err.response && err.response.data && err.response.data.message) {
+        setError(err.response.data.message);
+      } else {
+        setError('Email hoặc mật khẩu không chính xác.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -406,18 +438,28 @@ const Login = () => {
         {mode === 'login' && (
           <div className="mt-8 border-t border-gray-200 pt-6">
             <p className="text-xs text-gray-400 text-center mb-3 uppercase tracking-wider font-bold">Nút test nhanh (Dành cho Giảng Viên)</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button 
                 type="button"
-                onClick={() => quickLogin('admin@pickleball.com', 'password')}
-                className="bg-purple-100 text-purple-700 text-xs font-bold py-2 rounded hover:bg-purple-200 transition"
+                onClick={() => quickLogin('admin@gmail.com', 'password')}
+                className="bg-purple-100 text-purple-700 text-xs font-bold py-2 rounded-xl hover:bg-purple-200 transition cursor-pointer"
+                title="Đăng nhập Admin (admin@gmail.com)"
               >
                 ADMIN
               </button>
               <button 
                 type="button"
-                onClick={() => quickLogin('user@pickleball.com', 'password')}
-                className="bg-gray-100 text-gray-700 text-xs font-bold py-2 rounded hover:bg-gray-200 transition"
+                onClick={() => quickLogin('coach1@gmail.com', 'password')}
+                className="bg-blue-100 text-blue-700 text-xs font-bold py-2 rounded-xl hover:bg-blue-200 transition cursor-pointer"
+                title="Đăng nhập Huấn Luyện Viên (coach1@gmail.com)"
+              >
+                HLV (COACH)
+              </button>
+              <button 
+                type="button"
+                onClick={() => quickLogin('user@gmail.com', 'password')}
+                className="bg-green-100 text-green-700 text-xs font-bold py-2 rounded-xl hover:bg-green-200 transition cursor-pointer"
+                title="Đăng nhập Khách Hàng (user@gmail.com)"
               >
                 USER
               </button>

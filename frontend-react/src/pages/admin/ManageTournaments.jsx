@@ -285,6 +285,58 @@ const ManageTournaments = () => {
     return nameMatch || emailMatch;
   });
 
+  // Sorting State
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState('asc');
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedFilteredTournaments = (() => {
+    if (!sortField) return filteredTournaments;
+    return [...filteredTournaments].sort((a, b) => {
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+
+      if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = (bVal || '').toLowerCase();
+        return sortDirection === 'asc' 
+          ? aVal.localeCompare(bVal, 'vi') 
+          : bVal.localeCompare(aVal, 'vi');
+      }
+
+      aVal = Number(aVal || 0);
+      bVal = Number(bVal || 0);
+      return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+  })();
+
+  const renderSortHeader = (label, field, align = "text-left") => (
+    <th 
+      onClick={() => handleSort(field)} 
+      className={`px-6 py-4 font-bold text-gray-700 cursor-pointer hover:bg-gray-100 transition select-none group ${align}`}
+      title={`Bấm để sắp xếp theo ${label}`}
+    >
+      <div className={`flex items-center gap-1 ${align === 'text-center' ? 'justify-center' : ''}`}>
+        <span>{label}</span>
+        {sortField === field ? (
+          sortDirection === 'asc' 
+            ? <span className="material-symbols-outlined text-[15px] text-orange-500 font-bold">arrow_upward</span>
+            : <span className="material-symbols-outlined text-[15px] text-orange-500 font-bold">arrow_downward</span>
+        ) : (
+          <span className="material-symbols-outlined text-[15px] text-gray-300 opacity-60 group-hover:opacity-100 transition">unfold_more</span>
+        )}
+      </div>
+    </th>
+  );
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -334,15 +386,15 @@ const ManageTournaments = () => {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  <th className="px-6 py-4 text-left font-bold text-gray-600">Tên giải đấu</th>
-                  <th className="px-6 py-4 text-left font-bold text-gray-600">Thời gian</th>
-                  <th className="px-6 py-4 text-center font-bold text-gray-600">Đã đăng ký</th>
-                  <th className="px-6 py-4 text-center font-bold text-gray-600">Trạng thái</th>
+                  {renderSortHeader('Tên giải đấu', 'name', 'text-left')}
+                  {renderSortHeader('Thời gian', 'start_date', 'text-left')}
+                  {renderSortHeader('Đã đăng ký', 'participants_count', 'text-center')}
+                  {renderSortHeader('Trạng thái', 'status', 'text-center')}
                   <th className="px-6 py-4 text-center font-bold text-gray-600">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filteredTournaments.map(t => (
+                {sortedFilteredTournaments.map(t => (
                   <tr key={t.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
                       <p className="font-semibold text-gray-900">{t.name}</p>

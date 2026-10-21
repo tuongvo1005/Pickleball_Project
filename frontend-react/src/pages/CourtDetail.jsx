@@ -32,16 +32,47 @@ const CourtDetail = () => {
   // Online Payment States
   const [isPayingOnline, setIsPayingOnline] = useState(false);
   const [createdBooking, setCreatedBooking] = useState(null);
-  const [paymentTimeLeft, setPaymentTimeLeft] = useState(300);
+  const [paymentTimeLeft, setPaymentTimeLeft] = useState(600);
   const [onlinePaymentStep, setOnlinePaymentStep] = useState('waiting'); // waiting, processing, success
   const [activePaymentMethod, setActivePaymentMethod] = useState('momo'); // momo, vietqr
 
-  // Mock Reviews
-  const reviews = [
-    { id: 1, name: 'Nguyễn Văn A', rating: 5, comment: 'Sân mới, thảm đẹp, ánh sáng tốt vào buổi tối. Nhân viên phục vụ rất nhiệt tình!', date: '15/05/2026' },
-    { id: 2, name: 'Trần Thị B', rating: 4.5, comment: 'Sân ngoài trời hơi nóng vào buổi trưa nhưng không gian rất thoáng đãng. Giá cả hợp lý.', date: '12/05/2026' },
-    { id: 3, name: 'Lê Hoàng C', rating: 5, comment: 'Chất lượng sân tuyệt vời, bãi đậu xe rộng rãi. Sẽ tiếp tục đặt sân ở đây lâu dài!', date: '08/05/2026' },
-  ];
+  // Reviews State
+  const [reviews, setReviews] = useState([
+    { id: 'm1', name: 'Nguyễn Văn A', rating: 5, comment: 'Sân mới, thảm đẹp, ánh sáng tốt vào buổi tối. Nhân viên phục vụ rất nhiệt tình!', date: '15/05/2026' },
+    { id: 'm2', name: 'Trần Thị B', rating: 4.5, comment: 'Sân ngoài trời hơi nóng vào buổi trưa nhưng không gian rất thoáng đãng. Giá cả hợp lý.', date: '12/05/2026' },
+    { id: 'm3', name: 'Lê Hoàng C', rating: 5, comment: 'Chất lượng sân tuyệt vời, bãi đậu xe rộng rãi. Sẽ tiếp tục đặt sân ở đây lâu dài!', date: '08/05/2026' },
+  ]);
+
+  const fetchCourtReviews = () => {
+    axiosClient.get('/reviews')
+      .then(res => {
+        if (res.data.success) {
+          const apiReviews = (res.data.data || []).filter(r => 
+            r.reviewable_type === 'App\\Models\\Court' && 
+            r.reviewable_id?.toString() === id.toString() &&
+            r.status === 'active'
+          );
+
+          const formattedApiReviews = apiReviews.map(r => ({
+            id: `api_${r.id}`,
+            name: r.user?.name || 'Khách hàng',
+            rating: r.rating,
+            comment: r.comment || 'Không có bình luận chi tiết.',
+            date: r.created_at ? new Date(r.created_at).toLocaleDateString('vi-VN') : 'Mới đây'
+          }));
+
+          setReviews([
+            ...formattedApiReviews,
+            { id: 'm1', name: 'Nguyễn Văn A', rating: 5, comment: 'Sân mới, thảm đẹp, ánh sáng tốt vào buổi tối. Nhân viên phục vụ rất nhiệt tình!', date: '15/05/2026' },
+            { id: 'm2', name: 'Trần Thị B', rating: 4.5, comment: 'Sân ngoài trời hơi nóng vào buổi trưa nhưng không gian rất thoáng đãng. Giá cả hợp lý.', date: '12/05/2026' },
+            { id: 'm3', name: 'Lê Hoàng C', rating: 5, comment: 'Chất lượng sân tuyệt vời, bãi đậu xe rộng rãi. Sẽ tiếp tục đặt sân ở đây lâu dài!', date: '08/05/2026' },
+          ]);
+        }
+      })
+      .catch(err => {
+        console.error("Lỗi tải đánh giá sân:", err);
+      });
+  };
 
   // List of Court Utilities
   const utilities = [
@@ -88,9 +119,24 @@ const CourtDetail = () => {
 
   const [existingBookings, setExistingBookings] = useState([]);
 
-  // Hàm xác định trạng thái trống/bận của một khung giờ dựa trên ngày đã chọn
+  const isCourtInMaintenance = () => {
+    if (!court) return false;
+    if (court.status === 'maintenance') {
+      if (court.maintenance_start_date && court.maintenance_end_date) {
+        return (bookingDate >= court.maintenance_start_date && bookingDate <= court.maintenance_end_date);
+      }
+      return true;
+    }
+    return false;
+  };
+
+  // Hàm xác định trạng thái trống/bận/tạm giữ của một khung giờ dựa trên ngày đã chọn
   const getSlotStatus = (timeStr) => {
     if (!bookingDate) return 'Trống';
+    
+    if (isCourtInMaintenance()) {
+      return 'Bảo trì';
+    }
     
     // Kiểm tra giờ đã qua nếu chọn ngày hôm nay
     const today = new Date();
@@ -109,7 +155,7 @@ const CourtDetail = () => {
       }
     }
     
-    const isBooked = existingBookings.some(b => {
+    const matchedBooking = existingBookings.find(b => {
       if (b.booking_date !== bookingDate) return false;
       
       const [bHoursStart, bMinsStart] = b.start_time.split(':').map(Number);
@@ -123,17 +169,31 @@ const CourtDetail = () => {
       return slotTime >= bStart && slotTime < bEnd;
     });
     
-    return isBooked ? 'Đã đặt' : 'Trống';
+    if (!matchedBooking) return 'Trống';
+
+    if (matchedBooking.payment_status === 'pending') {
+      return 'Tạm giữ';
+    }
+
+    return 'Đã đặt';
   };
 
   const fetchCourtBookings = () => {
     axiosClient.get('/bookings')
       .then(response => {
         const allBookings = response.data.data || [];
-        const courtBookings = allBookings.filter(b => 
-          b.court_id?.toString() === id.toString() && 
-          (b.payment_status === 'paid' || b.payment_status === 'pending')
-        );
+        const now = new Date();
+        const courtBookings = allBookings.filter(b => {
+          if (b.court_id?.toString() !== id.toString()) return false;
+          if (b.status === 'cancelled' || b.payment_status === 'failed') return false;
+          if (b.payment_status === 'paid') return true;
+          if (b.payment_status === 'pending') {
+            const createdAt = new Date(b.created_at || b.updated_at);
+            const diffMinutes = (now - createdAt) / (1000 * 60);
+            return diffMinutes < 10; // Giữ chỗ 10 phút
+          }
+          return false;
+        });
         setExistingBookings(courtBookings);
       })
       .catch(err => {
@@ -166,7 +226,36 @@ const CourtDetail = () => {
       });
 
     fetchCourtBookings();
+    fetchCourtReviews();
   }, [id]);
+
+  if (court && court.status === 'maintenance') {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center">
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-3xl p-10 shadow-xl flex flex-col items-center">
+          <span className="material-symbols-outlined text-6xl text-amber-600 mb-4 animate-bounce">construction</span>
+          <h2 className="text-2xl font-black text-amber-900 mb-2 uppercase tracking-wide">Sân Đang Trong Thời Gian Bảo Trì</h2>
+          <p className="text-amber-800 text-sm max-w-lg mx-auto mb-6 leading-relaxed">
+            {court.maintenance_start_date && court.maintenance_end_date 
+              ? `Thời gian bảo trì: Từ ${court.maintenance_start_date} đến ${court.maintenance_end_date}.` 
+              : 'Sân hiện đang được tạm dừng hoạt động để nâng cấp, bảo dưỡng thiết bị.'}
+            {court.maintenance_reason && ` (${court.maintenance_reason})`}
+            <br />
+            <span className="font-bold text-amber-900 mt-2 block">
+              Quý khách không thể xem chi tiết hoặc thực hiện đặt lịch cho sân này lúc này. Vui lòng chọn sân khác!
+            </span>
+          </p>
+          <button 
+            onClick={() => navigate('/courts')}
+            className="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-3 rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer border-0"
+          >
+            <span className="material-symbols-outlined">arrow_back</span>
+            Quay lại danh sách sân
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Auto-verify payment effect
   useEffect(() => {
@@ -177,6 +266,10 @@ const CourtDetail = () => {
         setPaymentTimeLeft(prev => {
           if (prev <= 1) {
             clearInterval(timer);
+            toast.error("Thời gian tạm giữ chỗ (10 phút) đã hết! Ca chơi đã được giải phóng cho người khác.");
+            setIsPayingOnline(false);
+            setCreatedBooking(null);
+            fetchCourtBookings();
             return 0;
           }
           return prev - 1;
@@ -188,6 +281,24 @@ const CourtDetail = () => {
       clearInterval(timer);
     };
   }, [isPayingOnline, createdBooking, onlinePaymentStep]);
+
+  // Hủy ca tạm giữ lập tức khi khách bấm Hủy/Quay lại hoặc chuyển trang
+  const handleCancelHold = () => {
+    if (createdBooking && onlinePaymentStep === 'waiting') {
+      axiosClient.put(`/bookings/${createdBooking.id}`, {
+        status: 'cancelled',
+        payment_status: 'failed'
+      })
+      .then(() => {
+        toast.info("Đã hủy quá trình đặt cọc và giải phóng ca chơi.");
+        fetchCourtBookings();
+      })
+      .catch(err => console.error("Lỗi khi hủy ca tạm giữ:", err));
+    }
+    setIsPayingOnline(false);
+    setCreatedBooking(null);
+    setActivePaymentMethod('momo');
+  };
 
   const handleSimulatePaymentSuccess = () => {
     if (!createdBooking) return;
@@ -210,7 +321,12 @@ const CourtDetail = () => {
 
   const handleBookCourt = (e) => {
     e.preventDefault();
-    if (!user) {
+    if (court && (court.status === 'maintenance' || isCourtInMaintenance())) {
+      toast.error('Sân này đang trong thời gian bảo trì, quý khách không thể thực hiện đặt sân!');
+      return;
+    }
+    const token = localStorage.getItem('ACCESS_TOKEN');
+    if (!user || !user.id || !token) {
       toast.warning('Vui lòng đăng nhập để đặt sân!');
       navigate('/login');
       return;
@@ -226,8 +342,13 @@ const CourtDetail = () => {
       return;
     }
 
-    if (getSlotStatus(startTime) === 'Đã đặt') {
+    const currentStatus = getSlotStatus(startTime);
+    if (currentStatus === 'Đã đặt') {
       toast.error('Khung giờ bạn chọn đã bị trùng lịch! Vui lòng chọn giờ bắt đầu khác.');
+      return;
+    }
+    if (currentStatus === 'Tạm giữ') {
+      toast.error('Khung giờ bạn chọn đang được tạm giữ trong 10 phút bởi khách khác. Vui lòng chọn giờ khác.');
       return;
     }
 
@@ -251,8 +372,9 @@ const CourtDetail = () => {
       setCreatedBooking(booking);
       setIsPayingOnline(true);
       setOnlinePaymentStep('waiting');
-      setPaymentTimeLeft(300);
+      setPaymentTimeLeft(600); // Tạm giữ 10 phút (600 giây)
       setBookingLoading(false);
+      fetchCourtBookings();
     })
     .catch(err => {
       console.error("Lỗi khi gửi yêu cầu đặt sân:", err);
@@ -545,7 +667,10 @@ const CourtDetail = () => {
                     <div className="space-y-2.5">
                       <div className="flex items-center justify-center gap-1.5 bg-amber-50 text-amber-800 px-3 py-2 rounded-xl border border-amber-200 text-[11px] font-semibold">
                         <span className="material-symbols-outlined animate-spin text-[14px]">hourglass_empty</span>
-                        Đang đợi giao dịch... ({Math.floor(paymentTimeLeft / 60)}:{String(paymentTimeLeft % 60).padStart(2, '0')})
+                        Đang tạm giữ ca chơi trong 10 phút ({Math.floor(paymentTimeLeft / 60)}:{String(paymentTimeLeft % 60).padStart(2, '0')})
+                      </div>
+                      <div className="text-[10px] text-amber-700 bg-amber-50/50 p-2 rounded-lg border border-amber-100/50 text-center leading-relaxed">
+                        ⏱️ Ca chơi này đã được <strong>tạm giữ chỗ riêng cho bạn trong 10 phút</strong>. Vui lòng hoàn tất cọc trước khi hết giờ.
                       </div>
 
                       <button 
@@ -581,11 +706,7 @@ const CourtDetail = () => {
                   ) : (
                     <button 
                       type="button"
-                      onClick={() => {
-                        setIsPayingOnline(false);
-                        setCreatedBooking(null);
-                        setActivePaymentMethod('momo');
-                      }}
+                      onClick={handleCancelHold}
                       className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-2 rounded-xl transition flex items-center justify-center gap-1 cursor-pointer border-0 text-xs"
                     >
                       Hủy &amp; Quay lại
@@ -601,6 +722,22 @@ const CourtDetail = () => {
                       <span className="text-xs text-gray-400 font-normal"> /giờ</span>
                     </span>
                   </div>
+
+                  {isCourtInMaintenance() && (
+                    <div className="p-4 bg-amber-50 border border-amber-300 rounded-2xl mb-4 text-amber-900 shadow-sm animate-fade-in">
+                      <div className="flex items-center gap-2 font-extrabold text-sm text-amber-900 mb-1">
+                        <span className="material-symbols-outlined text-amber-600 text-xl">construction</span>
+                        Sân Đang Trong Thời Gian Bảo Trì!
+                      </div>
+                      <p className="text-xs text-amber-800 leading-relaxed">
+                        {court.maintenance_start_date && court.maintenance_end_date 
+                          ? `Thời gian bảo trì: Từ ${court.maintenance_start_date} đến ${court.maintenance_end_date}.` 
+                          : 'Sân hiện đang trong chu kỳ sửa chữa bảo trì.'}
+                        {court.maintenance_reason && ` (${court.maintenance_reason})`}
+                      </p>
+                      <p className="text-[11px] font-bold text-amber-900 mt-1.5">⚠️ Tất cả khung giờ chơi đã tự động khóa. Vui lòng đổi sang ngày khác hoặc chọn sân khác!</p>
+                    </div>
+                  )}
 
                   <form onSubmit={handleBookCourt} className="space-y-4">
                     <div>
@@ -623,24 +760,31 @@ const CourtDetail = () => {
                       <div className="grid grid-cols-3 gap-2">
                         {getStartTimes().map(slot => {
                           const dynamicStatus = getSlotStatus(slot.time);
+                          const isDisabled = isCourtInMaintenance() || dynamicStatus === 'Bảo trì' || dynamicStatus === 'Đã đặt' || dynamicStatus === 'Tạm giữ' || dynamicStatus === 'Đã qua';
                           return (
                             <button
                               key={slot.time}
                               type="button"
-                              disabled={dynamicStatus === 'Đã đặt' || dynamicStatus === 'Đã qua'}
+                              disabled={isDisabled}
                               onClick={() => setStartTime(slot.time)}
                               className={`py-2.5 text-xs font-bold rounded-xl border text-center transition-all ${
-                                dynamicStatus === 'Đã đặt' 
-                                  ? 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed line-through'
-                                  : dynamicStatus === 'Đã qua'
-                                    ? 'bg-gray-150 border-gray-200 text-gray-300 cursor-not-allowed line-through'
-                                    : startTime === slot.time
-                                      ? 'bg-green-600 border-green-600 text-white shadow-md'
-                                      : 'bg-white border-gray-200 text-gray-600 hover:border-green-500 hover:text-green-600'
+                                dynamicStatus === 'Bảo trì' || isCourtInMaintenance()
+                                  ? 'bg-amber-50 border-amber-200 text-amber-800 cursor-not-allowed line-through'
+                                  : dynamicStatus === 'Đã đặt' 
+                                    ? 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed line-through'
+                                    : dynamicStatus === 'Tạm giữ'
+                                      ? 'bg-amber-100 border-amber-300 text-amber-800 cursor-not-allowed font-semibold'
+                                      : dynamicStatus === 'Đã qua'
+                                        ? 'bg-gray-150 border-gray-200 text-gray-300 cursor-not-allowed line-through'
+                                        : startTime === slot.time
+                                          ? 'bg-green-600 border-green-600 text-white shadow-md'
+                                          : 'bg-white border-gray-200 text-gray-600 hover:border-green-500 hover:text-green-600'
                               }`}
                             >
                               {slot.time}
-                              <span className="block text-[8px] font-medium opacity-85">{dynamicStatus}</span>
+                              <span className="block text-[8px] font-medium opacity-85">
+                                {dynamicStatus === 'Tạm giữ' ? 'Tạm giữ (10p)' : (isCourtInMaintenance() ? 'Bảo trì' : dynamicStatus)}
+                              </span>
                             </button>
                           );
                         })}

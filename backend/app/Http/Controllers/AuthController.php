@@ -380,6 +380,14 @@ class AuthController extends Controller
             ], 401);
         }
 
+        // Kiểm tra xem tài khoản có bị khóa hay không
+        if ($user->is_locked) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tài khoản của bạn đã bị khóa bởi quản trị viên. Vui lòng liên hệ bộ phận hỗ trợ.'
+            ], 403);
+        }
+
         // Xóa token cũ và tạo token mới
         $user->tokens()->delete();
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -415,8 +423,8 @@ class AuthController extends Controller
             'name'        => 'sometimes|required|string|max:255',
             'phone'       => 'nullable|string|max:20',
             'bio'         => 'nullable|string',
-            'hourly_rate' => 'nullable|numeric|min:0',
-            'experience'  => 'nullable|integer|min:0',
+            'hourly_rate' => 'nullable',
+            'experience'  => 'nullable',
             'expertise'   => 'nullable|string',
             'password'    => 'nullable|string|min:6|confirmed',
         ]);
@@ -428,7 +436,22 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $data = $request->only(['name', 'phone', 'bio', 'hourly_rate', 'experience', 'expertise']);
+        $data = $request->only(['name', 'phone', 'bio', 'expertise']);
+
+        if ($request->has('hourly_rate')) {
+            $rate = preg_replace('/[^0-9.]/', '', (string)$request->hourly_rate);
+            $data['hourly_rate'] = is_numeric($rate) ? (float)$rate : 0;
+        }
+
+        if ($request->has('experience')) {
+            $exp = $request->experience;
+            if (is_numeric($exp)) {
+                $data['experience'] = (int)$exp;
+            } else {
+                preg_match('/\d+/', (string)$exp, $matches);
+                $data['experience'] = isset($matches[0]) ? (int)$matches[0] : 0;
+            }
+        }
 
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
@@ -565,22 +588,29 @@ class AuthController extends Controller
     
     public function getCoaches()
     {
-        $coaches = User::where('role', 'coach')->get()->map(function ($c) {
-            // Cung cấp các dữ liệu mẫu nếu các trường trong DB trống
-            if (empty($c->avatar)) {
-                $c->avatar = "https://images.unsplash.com/photo-1599566150163-29194dcaad36?q=80&w=256&auto=format&fit=crop";
-            }
-            if (empty($c->experience)) {
-                $c->experience = "3 năm";
-            }
-            if (empty($c->expertise)) {
-                $c->expertise = "Căn bản & Nâng cao";
-            }
-            if (empty($c->hourly_rate) || $c->hourly_rate <= 0) {
-                $c->hourly_rate = 250000;
-            }
-            return $c;
-        });
+        $coaches = User::where('role', 'coach')
+            ->where(function ($q) {
+                $q->whereNull('is_locked')
+                  ->orWhere('is_locked', false)
+                  ->orWhere('is_locked', 0);
+            })
+            ->get()
+            ->map(function ($c) {
+                // Cung cấp các dữ liệu mẫu nếu các trường trong DB trống
+                if (empty($c->avatar)) {
+                    $c->avatar = "https://images.unsplash.com/photo-1599566150163-29194dcaad36?q=80&w=256&auto=format&fit=crop";
+                }
+                if (empty($c->experience)) {
+                    $c->experience = "3 năm";
+                }
+                if (empty($c->expertise)) {
+                    $c->expertise = "Căn bản & Nâng cao";
+                }
+                if (empty($c->hourly_rate) || $c->hourly_rate <= 0) {
+                    $c->hourly_rate = 250000;
+                }
+                return $c;
+            });
 
         return response()->json([
             'success' => true,
@@ -607,16 +637,38 @@ class AuthController extends Controller
             return response()->json(['success' => false, 'message' => 'Bạn không có quyền thực hiện.'], 403);
         }
 
+        // Nếu không nhập Email, tự động tạo email định danh theo SĐT hoặc mã ngẫu nhiên
+        $email = trim($request->email ?? '');
+        if (empty($email)) {
+            $phone = preg_replace('/[^0-9]/', '', $request->phone ?? '');
+            if (!empty($phone)) {
+                $email = $phone . '@pickleball.local';
+            } else {
+                $email = 'khach_' . time() . rand(100, 999) . '@pickleball.local';
+            }
+            $request->merge(['email' => $email]);
+        }
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
+            'email' => 'required|string|email|max:255|unique:users,email',
             'password' => 'required|string|min:6',
             'role' => 'required|in:admin,coach,user',
             'phone' => 'nullable|string|max:20',
+        ], [
+            'name.required' => 'Vui lòng nhập Họ và tên!',
+            'email.required' => 'Vui lòng nhập Email hoặc chọn chế độ Khách không có Email!',
+            'email.unique' => 'Email/SĐT định danh này đã tồn tại trong hệ thống!',
+            'email.email' => 'Định dạng Email không hợp lệ!',
+            'password.min' => 'Mật khẩu phải chứa ít nhất 6 ký tự!',
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
+            return response()->json([
+                'success' => false, 
+                'message' => $validator->errors()->first(), 
+                'errors' => $validator->errors()
+            ], 422);
         }
 
         $user = User::create([
@@ -655,8 +707,8 @@ class AuthController extends Controller
             'phone' => 'nullable|string|max:20',
             'role' => 'sometimes|in:admin,coach,user',
             'bio' => 'nullable|string',
-            'hourly_rate' => 'nullable|numeric|min:0',
-            'experience' => 'nullable|string|max:255',
+            'hourly_rate' => 'nullable',
+            'experience' => 'nullable',
             'expertise' => 'nullable|string|max:255',
             'avatar' => 'nullable|string',
             'admin_password' => 'required|string',
@@ -692,10 +744,17 @@ class AuthController extends Controller
             $user->bio = $request->bio;
         }
         if ($request->has('hourly_rate')) {
-            $user->hourly_rate = $request->hourly_rate;
+            $rate = preg_replace('/[^0-9.]/', '', (string)$request->hourly_rate);
+            $user->hourly_rate = is_numeric($rate) ? (float)$rate : 0;
         }
         if ($request->has('experience')) {
-            $user->experience = $request->experience;
+            $exp = $request->experience;
+            if (is_numeric($exp)) {
+                $user->experience = (int)$exp;
+            } else {
+                preg_match('/\d+/', (string)$exp, $matches);
+                $user->experience = isset($matches[0]) ? (int)$matches[0] : 0;
+            }
         }
         if ($request->has('expertise')) {
             $user->expertise = $request->expertise;
@@ -733,6 +792,43 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Xóa người dùng thành công!'
+        ]);
+    }
+
+    public function toggleLockUserByAdmin(Request $request, $id)
+    {
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Bạn không có quyền thực hiện thao tác này.'], 403);
+        }
+
+        $user = User::find($id);
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Không tìm thấy người dùng.'], 404);
+        }
+
+        // Chống tự khóa Admin tối cao (ID=1) hoặc khóa tài khoản của chính mình
+        if (!$user->is_locked && ($id == 1 || $id == $request->user()->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể khóa tài khoản Admin tối cao hoặc tài khoản đang đăng nhập hiện tại!'
+            ], 403);
+        }
+
+        $user->is_locked = !$user->is_locked;
+        
+        // Nếu khóa tài khoản: Thu hồi toàn bộ Sanctum Tokens ngay lập tức để đăng xuất người dùng
+        if ($user->is_locked) {
+            $user->tokens()->delete();
+        }
+
+        $user->save();
+
+        $actionText = $user->is_locked ? 'Đã khóa' : 'Đã mở khóa';
+
+        return response()->json([
+            'success' => true,
+            'message' => "{$actionText} tài khoản \"{$user->name}\" thành công!",
+            'data' => $user
         ]);
     }
 }

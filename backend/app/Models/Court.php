@@ -20,6 +20,9 @@ class Court extends Model
         'price_per_hour',
         'status',
         'slots',
+        'maintenance_start_date',
+        'maintenance_end_date',
+        'maintenance_reason',
     ];
 
     /**

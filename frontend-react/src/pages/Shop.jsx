@@ -100,9 +100,9 @@ const Shop = () => {
       .reduce((sum, item) => sum + item.quantity, 0);
   };
 
-  // Số lượng còn lại thực tế có thể mua = stock - đã trong giỏ
+  // Số lượng còn lại thực tế trong CSDL (Chỉ trừ kho khi khách thực sự hoàn tất đặt/thanh toán đơn hàng)
   const getRemainingStock = (product) => {
-    return Math.max(0, product.stock - getCartQty(product.id));
+    return Math.max(0, product.stock || 0);
   };
 
   const handleQtyChange = (productId, newQty) => {
@@ -121,11 +121,11 @@ const Shop = () => {
     }
 
     const qty = quantities[product.id] || 1;
-    const remaining = getRemainingStock(product);
+    const stockInDB = getRemainingStock(product);
 
-    if (qty > remaining) {
-      toast.error(`Chỉ còn ${remaining} sản phẩm trong kho! Vui lòng giảm số lượng.`);
-      handleQtyChange(product.id, remaining > 0 ? remaining : 1);
+    if (qty > stockInDB) {
+      toast.error(`Chỉ còn ${stockInDB} sản phẩm trong kho! Vui lòng giảm số lượng.`);
+      handleQtyChange(product.id, stockInDB > 0 ? stockInDB : 1);
       return;
     }
 
@@ -136,7 +136,7 @@ const Shop = () => {
     if (existingIndex >= 0) {
       cart[existingIndex].quantity += qty;
     } else {
-      cart.push({ ...product, quantity: qty, image: getProductImage(product.name) });
+      cart.push({ ...product, quantity: qty, image: getProductImage(product) });
     }
     
     localStorage.setItem(cartKey, JSON.stringify(cart));
@@ -145,9 +145,16 @@ const Shop = () => {
     toast.success(`Đã thêm ${qty} "${product.name}" vào giỏ hàng!`);
   };
 
-  // Tính giá thuê theo GIỜ (0.2% giá trị sản phẩm, tối thiểu 5k, làm tròn nghìn đồng)
-  const getRentalPricePerHour = (price) => {
-    return Math.max(5000, Math.round(Number(price) * 0.002 / 1000) * 1000);
+  // Tính giá thuê theo GIỜ (Ưu tiên giá thuê Admin thiết lập, nếu để trống thì tính 0.2% giá bán)
+  const getRentalPricePerHour = (product) => {
+    if (typeof product === 'object' && product !== null) {
+      if (product.rental_price && Number(product.rental_price) > 0) {
+        return Number(product.rental_price);
+      }
+      return Math.max(5000, Math.round(Number(product.price) * 0.002 / 1000) * 1000);
+    }
+    const val = Number(product);
+    return Math.max(5000, Math.round(val * 0.002 / 1000) * 1000);
   };
 
   // Tính tiền đặt cọc (30% giá trị sản phẩm, làm tròn nghìn đồng)
@@ -288,7 +295,7 @@ const Shop = () => {
       return;
     }
     
-    const hourlyPrice = getRentalPricePerHour(product.price);
+    const hourlyPrice = getRentalPricePerHour(product);
     const depositVal = getDepositPrice(product.price);
     const totalRentalFee = hourlyPrice * hours;
     
@@ -306,7 +313,7 @@ const Shop = () => {
       name: `${product.name} (THUÊ ${hours} giờ: ${time} - ${end} ngày ${formatDateVN(start)})`,
       price: totalRentalFee,
       quantity: qty,
-      image: getProductImage(product.name),
+      image: getProductImage(product),
       isRental: true,
       rentalStartDate: start,
       rentalStartTime: time,
@@ -329,31 +336,68 @@ const Shop = () => {
     setSelectedRentalProduct(null);
   };
 
-  const getProductImage = (name) => {
-    const lowerName = name.toLowerCase();
+  const getProductImage = (product) => {
+    if (typeof product === 'object' && product !== null) {
+      if (product.image_url) return product.image_url;
+      if (product.image) return product.image;
+      product = product.name || '';
+    }
+    const lowerName = String(product || '').toLowerCase();
     if (lowerName.includes('túi') || lowerName.includes('bag') || lowerName.includes('crbn')) {
-      return "https://images.unsplash.com/photo-1577733966973-d680bffd2e69?q=80&w=600&auto=format&fit=crop";
+      return "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?q=80&w=600&auto=format&fit=crop";
     }
-    if (lowerName.includes('vợt') || lowerName.includes('paddle') || lowerName.includes('selkirk') || lowerName.includes('joola')) {
-      return "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?q=80&w=600&auto=format&fit=crop";
+    if (lowerName.includes('joola')) {
+      return "https://images.unsplash.com/photo-1599586120429-48281b6f0ece?q=80&w=600&auto=format&fit=crop";
     }
-    if (lowerName.includes('bóng') || lowerName.includes('ball') || lowerName.includes('franklin')) {
-      return "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?q=80&w=600&auto=format&fit=crop";
+    if (lowerName.includes('vợt') || lowerName.includes('paddle') || lowerName.includes('selkirk') || lowerName.includes('franklin')) {
+      return "https://images.unsplash.com/photo-1622163642998-1ea32b0bbc67?q=80&w=600&auto=format&fit=crop";
     }
-    if (lowerName.includes('giày') || lowerName.includes('shoes') || lowerName.includes('swiss')) {
+    if (lowerName.includes('bóng') || lowerName.includes('ball')) {
+      return "https://images.unsplash.com/photo-1613918428409-bc97586ac943?q=80&w=600&auto=format&fit=crop";
+    }
+    if (lowerName.includes('giày') || lowerName.includes('shoes') || lowerName.includes('asics')) {
       return "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=600&auto=format&fit=crop";
     }
-    return "https://images.unsplash.com/photo-1592709823855-d1043492e9f2?q=80&w=600&auto=format&fit=crop";
+    return "https://images.unsplash.com/photo-1622163642998-1ea32b0bbc67?q=80&w=600&auto=format&fit=crop";
+  };
+
+  // Hàm phân loại sản phẩm thông minh (Auto-categorization)
+  const getProductCategory = (product) => {
+    if (!product) return 'phu-kien';
+    if (product.category) return product.category;
+    
+    const name = String(product.name || '').toLowerCase();
+    
+    // Nếu chứa từ khóa túi, bao, balo, giày, phụ kiện... -> Luôn là Giày & Phụ kiện
+    const isAccessoryKeyword = name.includes('túi') || name.includes('bao') || name.includes('balo') || 
+                              name.includes('bag') || name.includes('giày') || name.includes('shoe') || 
+                              name.includes('quấn') || name.includes('mũ') || name.includes('nón') || 
+                              name.includes('áo') || name.includes('quần') || name.includes('khăn') || 
+                              name.includes('cover') || name.includes('case') || name.includes('bảo vệ') ||
+                              name.includes('phụ kiện');
+    if (isAccessoryKeyword) {
+      return 'phu-kien';
+    }
+    
+    // Vợt Pickleball
+    if (name.includes('vợt') || name.includes('paddle')) {
+      return 'vot';
+    }
+    
+    // Bóng thi đấu
+    if (name.includes('bóng') || name.includes('ball')) {
+      return 'bong';
+    }
+    
+    // Mặc định -> Giày & Phụ kiện
+    return 'phu-kien';
   };
 
   const filteredProducts = products
     .filter(product => {
       if (category === 'all') return true;
-      const lowerName = product.name.toLowerCase();
-      if (category === 'vot') return lowerName.includes('vợt');
-      if (category === 'bong') return lowerName.includes('bóng');
-      if (category === 'phu-kien') return !lowerName.includes('vợt') && !lowerName.includes('bóng');
-      return true;
+      const productCat = getProductCategory(product);
+      return productCat === category;
     })
     .sort((a, b) => {
       if (sortPrice === 'asc') return Number(a.price) - Number(b.price);
@@ -396,18 +440,28 @@ const Shop = () => {
               </div>
               
               <ul className="space-y-2 mb-8">
-                {[{id: 'all', label: 'Tất cả sản phẩm'}, {id: 'vot', label: 'Vợt Pickleball'}, {id: 'bong', label: 'Bóng thi đấu'}, {id: 'phu-kien', label: 'Giày & Phụ kiện'}].map(cat => (
-                  <li key={cat.id}>
-                    <button 
-                      onClick={() => setCategory(cat.id)}
-                      className={`w-full text-left px-4 py-2.5 rounded-xl font-medium transition-colors ${
-                        category === cat.id ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                      }`}
-                    >
-                      {cat.label}
-                    </button>
-                  </li>
-                ))}
+                {[{id: 'all', label: 'Tất cả sản phẩm'}, {id: 'vot', label: 'Vợt Pickleball'}, {id: 'bong', label: 'Bóng thi đấu'}, {id: 'phu-kien', label: 'Phụ kiện'}].map(cat => {
+                  const count = cat.id === 'all' 
+                    ? products.length 
+                    : products.filter(p => getProductCategory(p) === cat.id).length;
+                  return (
+                    <li key={cat.id}>
+                      <button 
+                        onClick={() => setCategory(cat.id)}
+                        className={`w-full text-left px-4 py-2.5 rounded-xl font-medium transition-colors flex justify-between items-center cursor-pointer ${
+                          category === cat.id ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        }`}
+                      >
+                        <span>{cat.label}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                          category === cat.id ? 'bg-blue-200 text-blue-800' : 'bg-gray-100 text-gray-500'
+                        }`}>
+                          {count}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
 
               <div className="flex items-center gap-2 mb-4 pb-4 border-b border-gray-100">
@@ -453,7 +507,7 @@ const Shop = () => {
                     </div>
                   ) : (
                     filteredProducts.map(product => {
-                      const hourlyPrice = getRentalPricePerHour(product.price);
+                      const hourlyPrice = getRentalPricePerHour(product);
                       return (
                         <div key={product.id} className="group bg-white rounded-2xl border border-gray-100 hover:border-blue-200 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col relative">
                           
@@ -467,7 +521,7 @@ const Shop = () => {
                             <img 
                               alt={product.name}
                               className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-500 mix-blend-multiply"
-                              src={getProductImage(product.name)} 
+                              src={getProductImage(product)} 
                             />
                           </div>
 
@@ -477,27 +531,19 @@ const Shop = () => {
                             
                             <div className="mt-auto pt-4 border-t border-gray-50 space-y-4">
                               
-                              {/* Khu vực giá cả kép: Mua đứt vs Thuê theo giờ */}
-                              <div className="flex flex-col gap-1.5 bg-slate-50 p-2.5 rounded-xl border border-gray-100">
-                                <div className="flex justify-between items-center">
-                                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">GIÁ BÁN</p>
-                                  <p className="text-base font-extrabold text-blue-600 whitespace-nowrap">
-                                    {Number(product.price).toLocaleString('vi-VN')} <span className="text-xs font-normal text-gray-500">đ</span>
-                                  </p>
-                                </div>
-                                <div className="flex justify-between items-center border-t border-dashed border-gray-200 pt-1.5">
-                                  <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest">GIÁ THUÊ</p>
-                                  <p className="text-sm font-extrabold text-emerald-600 whitespace-nowrap">
-                                    {hourlyPrice.toLocaleString('vi-VN')} <span className="text-xs font-normal text-emerald-500">đ/giờ</span>
-                                  </p>
-                                </div>
+                              {/* Khu vực giá bán */}
+                              <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-gray-100">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">GIÁ BÁN</p>
+                                <p className="text-lg font-black text-blue-600 whitespace-nowrap">
+                                  {Number(product.price).toLocaleString('vi-VN')} <span className="text-xs font-normal text-gray-500">đ</span>
+                                </p>
                               </div>
                               
                               {(() => {
                                 const remaining = getRemainingStock(product);
                                 const currentQty = quantities[product.id] || 1;
                                 return remaining > 0 ? (
-                                  <div className="space-y-2">
+                                  <div className="space-y-3">
                                     {/* Badge số lượng còn lại realtime */}
                                     <div className="flex items-center justify-between text-[10px] px-1">
                                       <span className="text-gray-400 font-medium">Tồn kho:</span>
@@ -536,21 +582,14 @@ const Shop = () => {
                                       </div>
                                     </div>
                                     
-                                    {/* Nhóm nút bấm Mua vs Thuê theo giờ */}
-                                    <div className="grid grid-cols-2 gap-2 pt-1">
+                                    {/* Nút Thêm vào giỏ hàng duy nhất */}
+                                    <div className="pt-1">
                                       <button 
                                         onClick={() => handleAddToCart(product)}
-                                        className="h-9 bg-blue-600 text-white rounded-xl flex items-center justify-center gap-1 transition-all shadow-sm hover:bg-blue-700 active:scale-95 hover:shadow-md font-bold text-[10px] uppercase tracking-wider"
+                                        className="w-full h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-sm hover:bg-blue-700 active:scale-95 hover:shadow-md font-bold text-xs uppercase tracking-wider cursor-pointer border-0"
                                       >
-                                        <span className="material-symbols-outlined text-[14px]">shopping_cart</span>
-                                        Mua đứt
-                                      </button>
-                                      <button 
-                                        onClick={() => handleOpenRentalModal(product)}
-                                        className="h-9 bg-emerald-600 text-white rounded-xl flex items-center justify-center gap-1 transition-all shadow-sm hover:bg-emerald-700 active:scale-95 hover:shadow-md font-bold text-[10px] uppercase tracking-wider"
-                                      >
-                                        <span className="material-symbols-outlined text-[14px]">calendar_month</span>
-                                        Thuê ngay
+                                        <span className="material-symbols-outlined text-[16px]">shopping_cart</span>
+                                        Thêm vào giỏ hàng
                                       </button>
                                     </div>
                                   </div>
@@ -572,191 +611,6 @@ const Shop = () => {
           </div>
         </div>
       </section>
-
-      {/* Modal Đăng Ký Thuê Dụng Cụ Theo Giờ */}
-      {selectedRentalProduct && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-fade-in">
-            
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <div className="flex items-center gap-2 text-emerald-600">
-                <span className="material-symbols-outlined font-bold">hourglass_empty</span>
-                <h2 className="text-xl font-bold text-gray-800">Đặt Thuê Dụng Cụ Theo Giờ</h2>
-              </div>
-              <button onClick={() => setSelectedRentalProduct(null)} className="text-gray-400 hover:text-red-500 transition-colors">
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="p-6">
-              {/* Product Brief */}
-              <div className="flex gap-4 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 mb-6">
-                <div className="w-16 h-16 bg-white rounded-lg p-1 flex shrink-0 items-center justify-center border border-emerald-100">
-                  <img 
-                    src={getProductImage(selectedRentalProduct.name)} 
-                    alt={selectedRentalProduct.name}
-                    className="max-h-full max-w-full object-contain mix-blend-multiply" 
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-bold text-emerald-950 truncate text-base">{selectedRentalProduct.name}</h3>
-                  <p className="text-xs text-emerald-700 mt-0.5 line-clamp-1">{selectedRentalProduct.description || 'Dụng cụ thể thao cao cấp.'}</p>
-                  <div className="flex items-center justify-between mt-1">
-                    <p className="text-sm font-black text-emerald-600">
-                      Giá thuê: {getRentalPricePerHour(selectedRentalProduct.price).toLocaleString('vi-VN')} đ/giờ
-                    </p>
-                    <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                      Tổng kho: {selectedRentalProduct.stock} cái
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Input Form Fields */}
-              <div className="space-y-4">
-                
-                {/* Row 1: Date & Time Start */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Ngày Thuê</label>
-                    <input 
-                      type="date"
-                      value={rentalStartDate}
-                      min={new Date().toISOString().split('T')[0]}
-                      onChange={(e) => setRentalStartDate(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500 font-medium text-gray-700 bg-white shadow-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Giờ Bắt Đầu</label>
-                    {availableHours.length > 0 ? (
-                      <select
-                        value={rentalStartTime}
-                        onChange={(e) => setRentalStartTime(e.target.value)}
-                        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500 font-medium text-gray-700 bg-white shadow-sm"
-                      >
-                        {availableHours.map(formatted => (
-                          <option key={formatted} value={formatted}>{formatted}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <div className="w-full border border-red-200 rounded-xl px-4 py-2.5 text-xs text-red-500 font-bold bg-red-50 flex items-center gap-1.5 shadow-sm">
-                        <span className="material-symbols-outlined text-[14px]">error</span>
-                        Hết đồ cho ngày này
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Row 2: Hours & Qty */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Thời Hạn Thuê (Tiếng)</label>
-                    <select
-                      value={rentalHours}
-                      disabled={availableHours.length === 0}
-                      onChange={(e) => setRentalHours(Number(e.target.value))}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500 font-medium text-gray-700 bg-white shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    >
-                      <option value="1">1 giờ</option>
-                      <option value="2">2 giờ (Khuyên dùng)</option>
-                      <option value="3">3 giờ</option>
-                      <option value="4">4 giờ</option>
-                      <option value="5">5 giờ</option>
-                      <option value="8">8 giờ (Cả ngày)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                      Số Lượng Thuê {availableHours.length > 0 && `(Còn ${currentRemainingStock})`}
-                    </label>
-                    <div className="flex items-center justify-between border border-gray-200 rounded-xl p-1 bg-white shadow-sm">
-                      <button
-                        type="button"
-                        disabled={availableHours.length === 0 || rentalQty <= 1}
-                        onClick={() => setRentalQty(prev => prev > 1 ? prev - 1 : 1)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center bg-gray-50 text-gray-600 hover:bg-gray-100 font-bold transition-all shadow-sm disabled:opacity-50"
-                      >
-                        -
-                      </button>
-                      <span className="w-8 text-center text-sm font-black text-gray-800">
-                        {availableHours.length > 0 ? rentalQty : 0}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={availableHours.length === 0 || rentalQty >= currentRemainingStock}
-                        onClick={() => setRentalQty(prev => prev < currentRemainingStock ? prev + 1 : prev)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center bg-gray-50 text-gray-600 hover:bg-gray-100 font-bold transition-all shadow-sm disabled:opacity-50"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Pricing Summary Detail Box */}
-                {availableHours.length > 0 ? (
-                  <div className="bg-slate-50 rounded-xl p-4 border border-gray-150 space-y-2 mt-6">
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>Khung giờ thuê:</span>
-                      <span className="font-bold text-gray-700">
-                        {rentalStartTime} đến {getEndTime(rentalStartTime, rentalHours)} ngày {formatDateVN(rentalStartDate)} ({rentalHours} giờ)
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>Giá thuê 1 chiếc/giờ:</span>
-                      <span className="font-bold text-gray-700">
-                        {getRentalPricePerHour(selectedRentalProduct.price).toLocaleString('vi-VN')} đ
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-xs text-emerald-600 font-medium">
-                      <span>Tổng phí thuê ({rentalQty} cái x {rentalHours} giờ):</span>
-                      <span className="font-extrabold">
-                        {(getRentalPricePerHour(selectedRentalProduct.price) * rentalHours * rentalQty).toLocaleString('vi-VN')} đ
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-xs text-slate-500 border-t border-dashed border-gray-200 pt-2">
-                      <span>Đặt cọc tạm tính (Hoàn lại 100%):</span>
-                      <span className="font-bold text-gray-700">
-                        {(getDepositPrice(selectedRentalProduct.price) * rentalQty).toLocaleString('vi-VN')} đ
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-red-50 text-red-700 border border-red-150 rounded-xl p-4 text-sm font-medium text-center mt-6">
-                    Hết sạch dụng cụ trong kho trong toàn bộ khung giờ của ngày này. Vui lòng chọn một ngày khác!
-                  </div>
-                )}
-              </div>
-
-              {/* Actions Footer */}
-              <div className="pt-6 mt-4 flex justify-end gap-3 border-t border-gray-50">
-                <button 
-                  onClick={() => setSelectedRentalProduct(null)} 
-                  className="px-4 py-2.5 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition-colors"
-                >
-                  Đóng
-                </button>
-                <button 
-                  onClick={handleConfirmRental}
-                  disabled={availableHours.length === 0}
-                  className="px-6 py-2.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm flex items-center gap-1.5 disabled:bg-gray-300 disabled:cursor-not-allowed disabled:shadow-none"
-                >
-                  <span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
-                  Xác Nhận Đặt Thuê
-                </button>
-              </div>
-
-            </div>
-
-          </div>
-        </div>
-      )}
-
     </div>
   );
 };

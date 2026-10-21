@@ -15,6 +15,9 @@ const Home = () => {
   const [date, setDate] = useState(getTodayString()); // Set default value to today
   const [time, setTime] = useState('Tất cả các giờ');
   
+  // Danh sách sân thực tế lấy từ Database
+  const [courtsList, setCourtsList] = useState([]);
+
   // State chứa từ khóa tìm kiếm chính thức (chỉ cập nhật khi bấm nút)
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('Tất cả các giờ');
@@ -27,6 +30,17 @@ const Home = () => {
     icon: 'partly_cloudy_day',
     recommendation: 'Lý tưởng cho sân ngoài trời'
   });
+
+  // Tải danh sách tất cả sân chơi từ Database để hiển thị vào ô Select Tìm kiếm
+  useEffect(() => {
+    axios.get('http://127.0.0.1:8000/api/courts')
+      .then(res => {
+        if (res.data?.success || Array.isArray(res.data?.data)) {
+          setCourtsList(res.data.data || []);
+        }
+      })
+      .catch(err => console.error("Lỗi lấy danh sách sân cho dropdown tìm kiếm:", err));
+  }, []);
 
   // Đồng hồ chạy thực tế
   useEffect(() => {
@@ -166,11 +180,21 @@ const Home = () => {
                   className="w-full pl-12 pr-10 py-3 rounded-xl border border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none bg-gray-50 text-gray-800 appearance-none transition-all cursor-pointer"
                 >
                   <option value="">Tất cả các sân</option>
-                  <option value="Sân số 1">Sân số 1 (Ngoài trời)</option>
-                  <option value="Sân số 2">Sân số 2 (Trong nhà)</option>
-                  <option value="Sân số 3">Sân số 3 (Ngoài trời)</option>
-                  <option value="Sân số 4">Sân số 4 (Trong nhà)</option>
-                  <option value="Sân số 5">Sân số 5 (Trong nhà)</option>
+                  {courtsList.length > 0 ? (
+                    courtsList.map((c, idx) => (
+                      <option key={c.id} value={c.name}>
+                        Sân số {idx + 1}: {c.name} ({c.type === 'indoor' || c.type === 'trong-nha' ? 'Trong nhà' : 'Ngoài trời'})
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="Sân số 1">Sân số 1 (Ngoài trời)</option>
+                      <option value="Sân số 2">Sân số 2 (Trong nhà)</option>
+                      <option value="Sân số 3">Sân số 3 (Ngoài trời)</option>
+                      <option value="Sân số 4">Sân số 4 (Trong nhà)</option>
+                      <option value="Sân số 5">Sân số 5 (Trong nhà)</option>
+                    </>
+                  )}
                 </select>
                 <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">expand_more</span>
               </div>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -14,7 +15,7 @@ class OrderController extends Controller
     private const ADMIN_TRANSITIONS = [
         'pending'    => ['processing', 'cancelled'],
         'processing' => ['shipped', 'cancelled'],
-        'shipped'    => ['delivered', 'cancelled'],    // Admin có thể chủ động chuyển sang "delivered" sau khi đối soát
+        'shipped'    => ['delivered', 'cancelled'],    // Admin có thể xác nhận "đã giao" thay khách hàng khi khách quên bấm nút
         'delivered'  => [],
         'cancelled'  => [],
     ];
@@ -99,6 +100,22 @@ class OrderController extends Controller
             'status'           => $status,
         ]);
 
+        // Trừ tồn kho thực tế của các sản phẩm tương ứng với đơn hàng vừa tạo
+        if (is_array($request->items)) {
+            foreach ($request->items as $item) {
+                $productId = $item['product_id'] ?? null;
+                $quantity  = (int)($item['quantity'] ?? 1);
+
+                if ($productId && $quantity > 0) {
+                    $product = Product::find($productId);
+                    if ($product) {
+                        $product->stock = max(0, (int)$product->stock - $quantity);
+                        $product->save();
+                    }
+                }
+            }
+        }
+
         $order->load('user:id,name,email,phone');
 
         return response()->json([
@@ -111,10 +128,10 @@ class OrderController extends Controller
     /**
      * Cập nhật trạng thái đơn hàng — DÀNH CHO ADMIN
      * PUT /api/orders/{id}
-     * Body: { "status": "shipped" }
+     * Body: { "status": "shipped" } hoặc { "status": "delivered" }
      *
-     * Lưu ý: Admin KHÔNG thể tự đặt "delivered".
-     * Chỉ khách hàng mới có thể xác nhận đã nhận qua endpoint /confirm-received.
+     * Admin có thể chuyển shipped → delivered khi khách hàng quên bấm nút xác nhận nhận hàng.
+     * Khách hàng vẫn có thể tự xác nhận qua endpoint /confirm-received.
      */
     public function update(Request $request, $id)
     {
@@ -160,6 +177,24 @@ class OrderController extends Controller
                 'success' => false,
                 'message' => "Không thể chuyển từ \"{$this->statusLabel($currentStatus)}\" sang \"{$this->statusLabel($newStatus)}\". {$allowed}.",
             ], 422);
+        }
+
+        // Nếu chuyển sang trạng thái "cancelled" (Đã hủy), hoàn lại tồn kho cho các sản phẩm trong đơn
+        if ($newStatus === 'cancelled' && $currentStatus !== 'cancelled') {
+            $items = is_array($order->items) ? $order->items : json_decode($order->items, true);
+            if (is_array($items)) {
+                foreach ($items as $item) {
+                    $productId = $item['product_id'] ?? null;
+                    $quantity  = (int)($item['quantity'] ?? 1);
+
+                    if ($productId && $quantity > 0) {
+                        $product = Product::find($productId);
+                        if ($product) {
+                            $product->increment('stock', $quantity);
+                        }
+                    }
+                }
+            }
         }
 
         $order->update(['status' => $newStatus]);

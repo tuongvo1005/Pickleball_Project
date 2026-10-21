@@ -16,6 +16,9 @@ const ManageUsers = () => {
   // Modal Thêm người dùng
   const [showAddModal, setShowAddModal] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '', password: 'password123', role: 'user', phone: '' });
+  const [noEmailMode, setNoEmailMode] = useState(false);
+  const [addErrors, setAddErrors] = useState({});
+  const [addLoading, setAddLoading] = useState(false);
 
   // Modal Xác nhận cấp quyền bằng mật khẩu
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -45,17 +48,52 @@ const ManageUsers = () => {
   });
   const [editLoading, setEditLoading] = useState(false);
 
+  // Modal Khóa / Mở khóa tài khoản người dùng
+  const [showLockModal, setShowLockModal] = useState(false);
+  const [userToLock, setUserToLock] = useState(null);
+  const [lockLoading, setLockLoading] = useState(false);
+
+  const handleTriggerLock = (user) => {
+    setUserToLock(user);
+    setShowLockModal(true);
+  };
+
+  const handleConfirmToggleLock = async () => {
+    if (!userToLock) return;
+    setLockLoading(true);
+    try {
+      const response = await axiosClient.put(`/admin/users/${userToLock.id}/toggle-lock`);
+      if (response.data.success) {
+        const updatedUser = response.data.data;
+        setUsers(users.map(u => u.id === userToLock.id ? { ...u, is_locked: updatedUser.is_locked } : u));
+        toast.success(response.data.message || 'Cập nhật trạng thái tài khoản thành công!');
+        setShowLockModal(false);
+        setUserToLock(null);
+      }
+    } catch (err) {
+      console.error("Lỗi khóa/mở khóa tài khoản:", err);
+      toast.error(err.response?.data?.message || 'Không thể khóa/mở khóa tài khoản này.');
+    } finally {
+      setLockLoading(false);
+    }
+  };
+
   // Lấy danh sách người dùng thực tế từ Laravel
   const fetchUsers = async () => {
     setLoading(true);
     try {
       const response = await axiosClient.get('/admin/users');
-      if (response.data.success) {
-        setUsers(response.data.data);
+      if (response.data && response.data.success) {
+        setUsers(Array.isArray(response.data.data) ? response.data.data : []);
+      } else if (Array.isArray(response.data)) {
+        setUsers(response.data);
+      } else {
+        setUsers([]);
       }
     } catch (err) {
       console.error("Lỗi lấy danh sách user:", err);
       toast.error('Không thể lấy danh sách người dùng.');
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -114,21 +152,93 @@ const ManageUsers = () => {
     }
   };
 
+  const openAddModal = () => {
+    setNewUser({ name: '', email: '', password: 'password123', role: 'user', phone: '' });
+    setNoEmailMode(false);
+    setAddErrors({});
+    setShowAddModal(true);
+  };
+
   const handleAddUser = async (e) => {
     e.preventDefault();
-    if (!newUser.name || !newUser.email) return;
+    setAddErrors({});
+    const errors = {};
 
+    const trimmedName = (newUser.name || '').trim();
+    const trimmedEmail = (newUser.email || '').trim();
+    const trimmedPhone = (newUser.phone || '').trim();
+    const trimmedPassword = newUser.password || '';
+
+    if (!trimmedName) {
+      errors.name = 'Vui lòng nhập Họ và tên!';
+    } else if (trimmedName.length < 2) {
+      errors.name = 'Họ và tên phải chứa ít nhất 2 ký tự!';
+    }
+
+    if (noEmailMode) {
+      if (!trimmedPhone) {
+        errors.phone = 'Vui lòng nhập Số điện thoại khi khách không có Email!';
+      } else if (!/^\d{10}$/.test(trimmedPhone)) {
+        errors.phone = 'Số điện thoại phải bao gồm đúng 10 chữ số (Ví dụ: 0901234567)!';
+      }
+    } else {
+      if (!trimmedEmail) {
+        errors.email = 'Vui lòng nhập Email đăng nhập!';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+        errors.email = 'Định dạng Email không hợp lệ (Ví dụ: email@example.com)!';
+      }
+    }
+
+    if (trimmedPhone && !/^\d{10}$/.test(trimmedPhone)) {
+      errors.phone = 'Số điện thoại phải bao gồm đúng 10 chữ số (Ví dụ: 0901234567)!';
+    }
+
+    if (!trimmedPassword || trimmedPassword.length < 6) {
+      errors.password = 'Mật khẩu ban đầu phải từ 6 ký tự trở lên!';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setAddErrors(errors);
+      toast.warning('Vui lòng kiểm tra và sửa các thông tin chưa hợp lệ!');
+      return;
+    }
+
+    setAddLoading(true);
     try {
-      const response = await axiosClient.post('/admin/users', newUser);
+      const payload = { ...newUser, name: trimmedName, phone: trimmedPhone };
+      if (noEmailMode) {
+        payload.email = `${trimmedPhone}@pickleball.local`;
+      } else {
+        payload.email = trimmedEmail;
+      }
+
+      const response = await axiosClient.post('/admin/users', payload);
       if (response.data.success) {
         setUsers([...users, response.data.data]);
         setShowAddModal(false);
         setNewUser({ name: '', email: '', password: 'password123', role: 'user', phone: '' });
+        setNoEmailMode(false);
+        setAddErrors({});
         toast.success('Thêm người dùng mới thành công!');
       }
     } catch (err) {
       console.error(err);
-      toast.error(err.response?.data?.message || 'Không thể tạo người dùng mới.');
+      if (err.response && err.response.status === 422) {
+        const backendErrors = err.response.data.errors || {};
+        const errMsg = err.response.data.message || 'Thông tin nhập vào không hợp lệ!';
+        toast.error(errMsg);
+        if (typeof backendErrors === 'object') {
+          const formattedErrors = {};
+          Object.keys(backendErrors).forEach(key => {
+            formattedErrors[key] = Array.isArray(backendErrors[key]) ? backendErrors[key][0] : String(backendErrors[key]);
+          });
+          setAddErrors(formattedErrors);
+        }
+      } else {
+        toast.error(err.response?.data?.message || 'Không thể tạo người dùng mới.');
+      }
+    } finally {
+      setAddLoading(false);
     }
   };
 
@@ -184,8 +294,21 @@ const ManageUsers = () => {
       return;
     }
     setEditLoading(true);
+
+    // Tự động tách con số từ chuỗi kinh nghiệm nếu có (vd "5 năm kinh nghiệm" -> 5)
+    let sanitizedExperience = editFormData.experience;
+    if (sanitizedExperience && typeof sanitizedExperience === 'string') {
+      const numbers = sanitizedExperience.match(/\d+/);
+      sanitizedExperience = numbers ? parseInt(numbers[0], 10) : 0;
+    }
+
+    const payload = {
+      ...editFormData,
+      experience: sanitizedExperience
+    };
+
     try {
-      const response = await axiosClient.put(`/admin/users/${editingUser.id}`, editFormData);
+      const response = await axiosClient.put(`/admin/users/${editingUser.id}`, payload);
       if (response.data.success) {
         setUsers(users.map(u => u.id === editingUser.id ? response.data.data : u));
         toast.success('Cập nhật thông tin người dùng thành công!');
@@ -206,45 +329,100 @@ const ManageUsers = () => {
     return 'Khách hàng (User)';
   };
 
-  const filteredUsers = users.filter(user => {
-    const nameMatch = user.name ? user.name.toLowerCase().includes(searchTerm.toLowerCase()) : false;
-    const emailMatch = user.email ? user.email.toLowerCase().includes(searchTerm.toLowerCase()) : false;
-    const matchSearch = nameMatch || emailMatch;
-    const matchRole = filterRole === 'all' || user.role === filterRole;
-    return matchSearch && matchRole;
-  });
+  // Sorting State
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState('asc');
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedFilteredUsers = (() => {
+    const filteredUsers = users.filter(user => {
+      const nameMatch = user.name ? user.name.toLowerCase().includes(searchTerm.toLowerCase()) : false;
+      const emailMatch = user.email ? user.email.toLowerCase().includes(searchTerm.toLowerCase()) : false;
+      const matchSearch = nameMatch || emailMatch;
+      const matchRole = filterRole === 'all' || user.role === filterRole;
+      return matchSearch && matchRole;
+    });
+
+    if (!sortField) return filteredUsers;
+    return [...filteredUsers].sort((a, b) => {
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+
+      if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = (bVal || '').toLowerCase();
+        return sortDirection === 'asc' 
+          ? aVal.localeCompare(bVal, 'vi') 
+          : bVal.localeCompare(aVal, 'vi');
+      }
+
+      aVal = Number(aVal || 0);
+      bVal = Number(bVal || 0);
+      return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+  })();
 
   // Tính toán phân trang
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedFilteredUsers.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
+  const currentItems = sortedFilteredUsers.slice(indexOfFirstItem, indexOfLastItem);
+
+  const renderSortHeader = (label, field, className = "") => (
+    <th 
+      onClick={() => handleSort(field)} 
+      className={`px-6 py-4 font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition select-none group ${className}`}
+      title={`Bấm để sắp xếp theo ${label}`}
+    >
+      <div className="flex items-center gap-1">
+        <span>{label}</span>
+        {sortField === field ? (
+          sortDirection === 'asc' 
+            ? <span className="material-symbols-outlined text-[16px] text-green-600 font-bold">arrow_upward</span>
+            : <span className="material-symbols-outlined text-[16px] text-green-600 font-bold">arrow_downward</span>
+        ) : (
+          <span className="material-symbols-outlined text-[16px] text-gray-300 opacity-60 group-hover:opacity-100 transition">unfold_more</span>
+        )}
+      </div>
+    </th>
+  );
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Quản lý Người Dùng</h1>
-        <button onClick={() => setShowAddModal(true)} className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-green-700 flex items-center gap-2 transition-colors">
+        <button onClick={openAddModal} className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-green-700 flex items-center gap-2 transition-colors cursor-pointer">
           <span className="material-symbols-outlined text-sm">person_add</span>
-          Thêm người dùng (Admin, User...)
+          Thêm người dùng
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         
         {/* Thanh công cụ tìm kiếm và lọc */}
-        <div className="p-4 border-b border-gray-100 flex gap-4 bg-gray-50">
-          <input 
-            type="text" 
-            placeholder="Tìm theo tên hoặc email..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 border border-gray-200 rounded-lg px-4 py-2 text-sm outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-all" 
-          />
+        <div className="p-5 border-b border-gray-100 flex flex-wrap gap-4 items-center justify-between bg-gray-50/50">
+          <div className="relative flex-1 min-w-[280px]">
+            <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm">search</span>
+            <input 
+              type="text" 
+              placeholder="Tìm theo tên hoặc email..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition" 
+            />
+          </div>
           <select 
             value={filterRole}
             onChange={(e) => setFilterRole(e.target.value)}
-            className="border border-gray-200 rounded-lg px-4 py-2 text-sm outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-all bg-white"
+            className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 outline-none focus:border-green-500 transition"
           >
             <option value="all">Tất cả vai trò</option>
             <option value="admin">Quản trị viên (Admin)</option>
@@ -262,17 +440,18 @@ const ManageUsers = () => {
           <>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 text-gray-500 border-b border-gray-100">
+                <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    <th className="px-6 py-4 font-medium">Tài khoản</th>
-                    <th className="px-6 py-4 font-medium">Vai trò</th>
-                    <th className="px-6 py-4 font-medium">Số điện thoại</th>
-                    <th className="px-6 py-4 font-medium text-right">Thao tác cấp quyền</th>
+                    {renderSortHeader('Tài khoản', 'name')}
+                    {renderSortHeader('Vai trò', 'role')}
+                    {renderSortHeader('Trạng thái', 'is_locked')}
+                    {renderSortHeader('Số điện thoại', 'phone')}
+                    <th className="px-6 py-4 font-semibold text-gray-700 text-right">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {currentItems.length === 0 ? (
-                    <tr><td colSpan="4" className="text-center py-10 text-gray-500">Không tìm thấy người dùng nào phù hợp.</td></tr>
+                    <tr><td colSpan="5" className="text-center py-10 text-gray-500">Không tìm thấy người dùng nào phù hợp.</td></tr>
                   ) : (
                     currentItems.map((user) => (
                       <tr key={user.id} className="hover:bg-gray-50 transition-colors">
@@ -289,7 +468,10 @@ const ManageUsers = () => {
                               </div>
                             )}
                             <div>
-                              <p className="font-bold text-gray-900">{user.name}</p>
+                              <p className="font-bold text-gray-900 flex items-center gap-1.5">
+                                {user.name}
+                                {user.id === 1 && <span className="text-[9px] bg-purple-100 text-purple-800 font-extrabold px-1.5 py-0.5 rounded">Gốc</span>}
+                              </p>
                               <p className="text-xs text-gray-500">{user.email}</p>
                             </div>
                           </div>
@@ -300,20 +482,55 @@ const ManageUsers = () => {
                           {user.role === 'coach' && <span className="bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full text-[11px] font-bold">Huấn luyện viên</span>}
                           {user.role === 'user' && <span className="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full text-[11px] font-bold">Khách hàng</span>}
                         </td>
+
+                        <td className="px-6 py-4">
+                          {user.is_locked ? (
+                            <span className="bg-red-100 text-red-700 border border-red-200 px-2.5 py-1 rounded-full text-[11px] font-extrabold inline-flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[13px]">lock</span>
+                              Đã khóa
+                            </span>
+                          ) : (
+                            <span className="bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[13px]">check_circle</span>
+                              Hoạt động
+                            </span>
+                          )}
+                        </td>
                         
                         <td className="px-6 py-4 text-gray-600 font-medium">
                           {user.phone || 'Chưa cập nhật'}
                         </td>
                         
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-6 py-4 text-right whitespace-nowrap">
+                          {/* Nút Khóa / Mở khóa tài khoản */}
+                          <button
+                            onClick={() => handleTriggerLock(user)}
+                            disabled={user.id === 1}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold mr-2 transition cursor-pointer border inline-flex items-center gap-1 ${
+                              user.id === 1 
+                                ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+                                : user.is_locked 
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                  : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
+                            }`}
+                            title={user.id === 1 ? 'Không thể khóa Admin tối cao' : user.is_locked ? 'Mở khóa tài khoản' : 'Khóa tài khoản'}
+                          >
+                            <span className="material-symbols-outlined text-[15px] align-middle">
+                              {user.is_locked ? 'lock_open' : 'lock'}
+                            </span>
+                            <span>{user.is_locked ? 'Mở khóa' : 'Khóa TK'}</span>
+                          </button>
+
                           <select 
                             value={user.role}
                             onChange={(e) => handleTriggerConfirm(user, e.target.value)}
-                            className="border border-gray-200 rounded-lg text-xs px-3 py-1.5 bg-white outline-none mr-3 cursor-pointer hover:border-green-500 transition-colors font-semibold"
+                            disabled={user.role === 'admin'}
+                            title={user.role === 'admin' ? "Không thể hạ quyền tài khoản Quản trị viên" : "Thay đổi vai trò"}
+                            className={`border rounded-lg text-xs px-2 py-1 outline-none mr-2 font-semibold transition-colors ${user.role === 'admin' ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white border-gray-200 cursor-pointer hover:border-green-500'}`}
                           >
-                            <option value="admin">Cấp quyền: Admin</option>
-                            <option value="coach">Cấp quyền: PT (Coach)</option>
-                            <option value="user">Cấp quyền: User</option>
+                            {user.role === 'admin' && <option value="admin">Admin</option>}
+                            <option value="coach">PT (Coach)</option>
+                            <option value="user">User</option>
                           </select>
                           
                           <button 
@@ -326,17 +543,7 @@ const ManageUsers = () => {
                             </span>
                           </button>
 
-                          {user.id !== 1 && ( // Không cho phép xóa Admin Toàn Quyền
-                            <button 
-                              onClick={() => handleTriggerDelete(user)}
-                              className="text-red-500 hover:text-red-700 transition-colors p-1" 
-                              title="Xóa người dùng"
-                            >
-                              <span className="material-symbols-outlined text-[20px] align-middle">
-                                delete
-                              </span>
-                            </button>
-                          )}
+                          {/* Nút xóa người dùng đã được ẩn theo yêu cầu */}
                         </td>
                       </tr>
                     ))
@@ -351,9 +558,9 @@ const ManageUsers = () => {
                 <div className="text-xs text-gray-500 font-medium">
                   Hiển thị từ <span className="font-bold text-gray-700">{indexOfFirstItem + 1}</span> đến{' '}
                   <span className="font-bold text-gray-700">
-                    {Math.min(indexOfLastItem, filteredUsers.length)}
+                    {Math.min(indexOfLastItem, sortedFilteredUsers.length)}
                   </span>{' '}
-                  trong tổng số <span className="font-bold text-gray-700">{filteredUsers.length}</span> người dùng
+                  trong tổng số <span className="font-bold text-gray-700">{sortedFilteredUsers.length}</span> người dùng
                 </div>
                 
                 <div className="flex items-center gap-1.5">
@@ -513,57 +720,110 @@ const ManageUsers = () => {
           <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
               <h2 className="text-xl font-bold text-gray-800">Thêm Người Dùng Mới</h2>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-red-500 transition-colors">
+              <button 
+                onClick={() => { setShowAddModal(false); setAddErrors({}); setNoEmailMode(false); }} 
+                className="text-gray-400 hover:text-red-500 transition-colors"
+              >
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
             
             <form onSubmit={handleAddUser} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Họ và tên</label>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Họ và tên <span className="text-red-500">*</span></label>
                 <input 
                   type="text" 
-                  required
                   value={newUser.name}
-                  onChange={(e) => setNewUser({...newUser, name: e.target.value})}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition" 
+                  onChange={(e) => {
+                    setNewUser({...newUser, name: e.target.value});
+                    if (addErrors.name) setAddErrors({...addErrors, name: null});
+                  }}
+                  className={`w-full border rounded-xl px-4 py-2 text-sm outline-none transition ${addErrors.name ? 'border-red-500 bg-red-50 focus:ring-red-500' : 'border-gray-200 focus:border-green-500 focus:ring-green-500'}`} 
                   placeholder="VD: Nguyễn Văn A"
                 />
+                {addErrors.name && <span className="text-red-500 text-xs font-semibold mt-1 block flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">error</span>{addErrors.name}</span>}
+              </div>
+
+              {/* Checkbox Khách không có Email */}
+              <div className="bg-emerald-50/60 p-3 rounded-xl border border-emerald-100 flex items-start gap-2.5">
+                <input 
+                  type="checkbox"
+                  id="noEmailMode"
+                  checked={noEmailMode}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setNoEmailMode(checked);
+                    setAddErrors({});
+                    const currentPhone = (newUser.phone || '').trim();
+                    if (checked && currentPhone) {
+                      setNewUser({...newUser, email: `${currentPhone}@pickleball.local`});
+                    } else if (!checked) {
+                      setNewUser({...newUser, email: ''});
+                    }
+                  }}
+                  className="mt-0.5 accent-green-600 w-4 h-4 rounded cursor-pointer"
+                />
+                <label htmlFor="noEmailMode" className="text-xs text-emerald-900 font-semibold cursor-pointer leading-tight">
+                  Khách không có Email
+                  <span className="block font-normal text-[11px] text-emerald-700 mt-0.5">
+                    Hệ thống sẽ tự động tạo email định danh theo Số điện thoại (VD: <code className="font-mono bg-emerald-100/80 px-1 rounded">0901234567@pickleball.local</code>).
+                  </span>
+                </label>
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Email đăng nhập</label>
+                <label className="block text-sm font-bold text-gray-700 mb-1">
+                  Email đăng nhập {!noEmailMode && <span className="text-red-500">*</span>}
+                </label>
                 <input 
                   type="email" 
-                  required
-                  value={newUser.email}
-                  onChange={(e) => setNewUser({...newUser, email: e.target.value})}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition" 
-                  placeholder="VD: email@example.com"
+                  disabled={noEmailMode}
+                  value={noEmailMode ? ((newUser.phone || '').trim() ? `${(newUser.phone || '').trim()}@pickleball.local` : 'Tự động tạo theo Số điện thoại') : (newUser.email || '')}
+                  onChange={(e) => {
+                    setNewUser({...newUser, email: e.target.value});
+                    if (addErrors.email) setAddErrors({...addErrors, email: null});
+                  }}
+                  className={`w-full border rounded-xl px-4 py-2 text-sm outline-none transition ${noEmailMode ? 'bg-gray-100 text-gray-500 font-mono border-gray-200 cursor-not-allowed' : addErrors.email ? 'border-red-500 bg-red-50 focus:ring-red-500' : 'border-gray-200 focus:border-green-500 focus:ring-green-500'}`} 
+                  placeholder={noEmailMode ? "Tự động tạo theo SĐT" : "VD: email@example.com"}
                 />
+                {addErrors.email && <span className="text-red-500 text-xs font-semibold mt-1 block flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">error</span>{addErrors.email}</span>}
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Số điện thoại</label>
+                <label className="block text-sm font-bold text-gray-700 mb-1">
+                  Số điện thoại {noEmailMode && <span className="text-red-500">*</span>}
+                </label>
                 <input 
                   type="text" 
                   value={newUser.phone}
-                  onChange={(e) => setNewUser({...newUser, phone: e.target.value})}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition" 
-                  placeholder="VD: 0987654321"
+                  onChange={(e) => {
+                    const phoneVal = e.target.value;
+                    setNewUser(prev => ({
+                      ...prev,
+                      phone: phoneVal,
+                      email: noEmailMode ? (phoneVal.trim() ? `${phoneVal.trim()}@pickleball.local` : '') : prev.email
+                    }));
+                    if (addErrors.phone) setAddErrors({...addErrors, phone: null});
+                  }}
+                  className={`w-full border rounded-xl px-4 py-2 text-sm outline-none transition ${addErrors.phone ? 'border-red-500 bg-red-50 focus:ring-red-500' : 'border-gray-200 focus:border-green-500 focus:ring-green-500'}`} 
+                  placeholder="VD: 0987654321 (10 chữ số)"
                 />
+                {addErrors.phone && <span className="text-red-500 text-xs font-semibold mt-1 block flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">error</span>{addErrors.phone}</span>}
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Mật khẩu ban đầu</label>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Mật khẩu ban đầu <span className="text-red-500">*</span></label>
                 <input 
                   type="text" 
-                  required
                   value={newUser.password}
-                  onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition" 
-                  placeholder="VD: password123"
+                  onChange={(e) => {
+                    setNewUser({...newUser, password: e.target.value});
+                    if (addErrors.password) setAddErrors({...addErrors, password: null});
+                  }}
+                  className={`w-full border rounded-xl px-4 py-2 text-sm outline-none transition ${addErrors.password ? 'border-red-500 bg-red-50 focus:ring-red-500' : 'border-gray-200 focus:border-green-500 focus:ring-green-500'}`} 
+                  placeholder="Mật khẩu ít nhất 6 ký tự"
                 />
+                {addErrors.password && <span className="text-red-500 text-xs font-semibold mt-1 block flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">error</span>{addErrors.password}</span>}
               </div>
 
               <div>
@@ -571,20 +831,27 @@ const ManageUsers = () => {
                 <select 
                   value={newUser.role}
                   onChange={(e) => setNewUser({...newUser, role: e.target.value})}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition bg-white"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition bg-white font-semibold"
                 >
                   <option value="user">Khách hàng (User)</option>
                   <option value="coach">Huấn luyện viên (PT/Coach)</option>
-                  <option value="admin">Quản trị viên (Admin)</option>
                 </select>
               </div>
 
               <div className="pt-4 border-t border-gray-100 flex justify-end gap-3 mt-6">
-                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2.5 text-gray-600 font-semibold hover:bg-gray-100 rounded-xl transition-colors">
+                <button 
+                  type="button" 
+                  onClick={() => { setShowAddModal(false); setAddErrors({}); setNoEmailMode(false); }} 
+                  className="px-4 py-2.5 text-gray-600 font-semibold hover:bg-gray-100 rounded-xl transition-colors"
+                >
                   Hủy
                 </button>
-                <button type="submit" className="px-6 py-2 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-sm">
-                  Thêm Người Dùng
+                <button 
+                  type="submit" 
+                  disabled={addLoading}
+                  className="px-6 py-2 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-sm flex items-center justify-center min-w-[130px]"
+                >
+                  {addLoading ? <span className="material-symbols-outlined animate-spin text-sm">autorenew</span> : 'Thêm Người Dùng'}
                 </button>
               </div>
             </form>
@@ -746,6 +1013,54 @@ const ManageUsers = () => {
         </div>
       )}
 
+      {/* MODAL XÁC NHẬN KHÓA / MỞ KHÓA TÀI KHOẢN */}
+      {showLockModal && userToLock && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200 border border-gray-100">
+            <div className={`px-6 py-5 border-b border-gray-100 flex justify-between items-center ${userToLock.is_locked ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+              <div className="flex items-center gap-2 font-black">
+                <span className="material-symbols-outlined text-2xl">{userToLock.is_locked ? 'lock_open' : 'lock'}</span>
+                <h2 className="text-lg">{userToLock.is_locked ? 'Xác Nhận Mở Khóa Tài Khoản' : 'Xác Nhận Khóa Tài Khoản'}</h2>
+              </div>
+              <button 
+                onClick={() => { setShowLockModal(false); setUserToLock(null); }} 
+                className="text-gray-400 hover:text-gray-600 transition"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600 leading-relaxed">
+                {userToLock.is_locked ? (
+                  <>Bạn có chắc chắn muốn <strong className="text-emerald-700 font-bold">mở khóa</strong> lại cho tài khoản <strong className="text-gray-900 font-bold">{userToLock.name}</strong> ({userToLock.email})? Sau khi mở khóa, người dùng có thể đăng nhập bình thường.</>
+                ) : (
+                  <>Bạn có chắc chắn muốn <strong className="text-red-600 font-bold">khóa ngay lập tức</strong> tài khoản <strong className="text-gray-900 font-bold">{userToLock.name}</strong> ({userToLock.email})? Người dùng sẽ bị đăng xuất khỏi hệ thống và không thể đăng nhập lại cho đến khi được mở khóa.</>
+                )}
+              </p>
+
+              <div className="pt-4 border-t border-gray-100 flex justify-end gap-3 mt-6">
+                <button 
+                  type="button" 
+                  onClick={() => { setShowLockModal(false); setUserToLock(null); }} 
+                  className="px-4 py-2.5 text-gray-600 font-semibold hover:bg-gray-100 rounded-xl transition text-xs cursor-pointer"
+                >
+                  Hủy bỏ
+                </button>
+                <button 
+                  onClick={handleConfirmToggleLock}
+                  disabled={lockLoading}
+                  className={`px-6 py-2.5 text-white font-bold rounded-xl transition shadow-md flex items-center justify-center min-w-[130px] text-xs border-0 cursor-pointer ${
+                    userToLock.is_locked ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
+                  }`}
+                >
+                  {lockLoading ? <span className="material-symbols-outlined animate-spin text-sm">autorenew</span> : (userToLock.is_locked ? 'Mở khóa ngay' : 'Khóa tài khoản')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

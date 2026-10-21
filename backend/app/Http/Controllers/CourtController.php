@@ -92,7 +92,10 @@ class CourtController extends Controller
             'type' => 'sometimes|required|in:indoor,outdoor',
             'price_per_hour' => 'sometimes|required|numeric|min:0',
             'status' => 'sometimes|required|in:active,maintenance,inactive',
-            'slots' => 'nullable|array'
+            'slots' => 'nullable|array',
+            'maintenance_start_date' => 'nullable|date',
+            'maintenance_end_date' => 'nullable|date|after_or_equal:maintenance_start_date',
+            'maintenance_reason' => 'nullable|string'
         ]);
 
         if ($validator->fails()) {
@@ -102,33 +105,60 @@ class CourtController extends Controller
             ], 422);
         }
 
-        // Bước 6 (Quy trình Bảo trì): Kiểm tra đơn đặt lịch tương lai nếu chuyển sang Bảo trì
-        if ($request->has('status') && $request->status === 'maintenance') {
-            $hasFutureBookings = \App\Models\Booking::where('court_id', $id)
-                ->where('status', '!=', 'cancelled')
-                ->where('payment_status', '!=', 'failed')
-                ->where(function($query) {
-                    $query->where('booking_date', '>', now()->toDateString())
-                          ->orWhere(function($q) {
-                              $q->where('booking_date', '=', now()->toDateString())
-                                ->where('start_time', '>=', now()->toTimeString());
-                          });
-                })
-                ->exists();
+        $newStatus = $request->has('status') ? $request->status : $court->status;
 
-            if ($hasFutureBookings) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cần xử lý/hủy các đơn đặt trước khi bảo trì sân.'
-                ], 400);
+        // Quy trình Bảo trì sân: Kiểm tra đối chiếu với đơn đặt lịch của khách hàng
+        if ($newStatus === 'maintenance') {
+            $startDate = $request->has('maintenance_start_date') ? $request->maintenance_start_date : $court->maintenance_start_date;
+            $endDate = $request->has('maintenance_end_date') ? $request->maintenance_end_date : $court->maintenance_end_date;
+
+            // Bước 3 & Rẽ nhánh 1: Hệ thống quét DB để đối chiếu với các đơn đặt lịch của khách hàng trong khoảng thời gian này
+            if ($startDate && $endDate) {
+                $hasOverlappingBookings = \App\Models\Booking::where('court_id', $id)
+                    ->where('status', '!=', 'cancelled')
+                    ->where('payment_status', '!=', 'failed')
+                    ->where(function($query) use ($startDate, $endDate) {
+                        $query->whereBetween('booking_date', [$startDate, $endDate]);
+                    })
+                    ->exists();
+
+                if ($hasOverlappingBookings) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Không thể bảo trì do sân đang có khách đặt trong thời gian này. Vui lòng dời lịch khách hoặc hủy đơn trước khi thiết lập bảo trì.'
+                    ], 400);
+                }
+            } else {
+                // Nếu chuyển sang bảo trì mà không truyền ngày cụ thể, kiểm tra các đơn từ hôm nay trở đi
+                $hasFutureBookings = \App\Models\Booking::where('court_id', $id)
+                    ->where('status', '!=', 'cancelled')
+                    ->where('payment_status', '!=', 'failed')
+                    ->where('booking_date', '>=', now()->toDateString())
+                    ->exists();
+
+                if ($hasFutureBookings) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Không thể bảo trì do sân đang có khách đặt trong thời gian này. Vui lòng dời lịch khách hoặc hủy đơn trước khi thiết lập bảo trì.'
+                    ], 400);
+                }
             }
+        } else if ($newStatus === 'active') {
+            // Nếu kích hoạt lại sân: Xóa thông tin bảo trì
+            $request->merge([
+                'maintenance_start_date' => null,
+                'maintenance_end_date' => null,
+                'maintenance_reason' => null,
+            ]);
         }
 
         $court->update($request->all());
 
         return response()->json([
             'success' => true,
-            'message' => 'Cập nhật thông tin sân thành công!',
+            'message' => $newStatus === 'maintenance' 
+                ? 'Thiết lập bảo trì sân thành công! Tất cả khung giờ trong khoảng thời gian này đã được khóa.' 
+                : 'Cập nhật thông tin sân thành công!',
             'data' => $court
         ], 200);
     }

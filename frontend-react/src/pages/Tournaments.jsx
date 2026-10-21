@@ -65,6 +65,14 @@ const Tournaments = () => {
       navigate('/login');
       return;
     }
+    if (tournament.status === 'ongoing') {
+      toast.warning('Giải đấu đang diễn ra, hệ thống đã khóa đăng ký!');
+      return;
+    }
+    if (tournament.status === 'finished') {
+      toast.warning('Giải đấu đã kết thúc!');
+      return;
+    }
     if (joinedIds.includes(tournament.id)) {
       toast.info('Bạn đã đăng ký giải đấu này rồi!');
       return;
@@ -129,7 +137,7 @@ Ban tổ chức sẽ liên hệ bạn sớm!`);
       {/* Danh sách giải đấu */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-extrabold text-gray-900">Các Giải Đấu Sắp Tới</h2>
+          <h2 className="text-3xl font-extrabold text-gray-900">Các Giải Đấu Pickleball</h2>
           <div className="w-24 h-1 bg-orange-500 mx-auto mt-4 rounded-full"></div>
         </div>
 
@@ -169,16 +177,17 @@ Ban tổ chức sẽ liên hệ bạn sớm!`);
                     <h3 className="text-2xl font-bold text-gray-900 group-hover:text-orange-600 transition-colors">{tournament.name}</h3>
                     {/* Badge trạng thái tự động theo ngày */}
                     {tournament.status === 'ongoing' ? (
-                      <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap animate-pulse">
+                      <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-extrabold px-3 py-1 rounded-full whitespace-nowrap animate-pulse flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
                         Đang diễn ra
                       </span>
                     ) : tournament.status === 'finished' ? (
-                      <span className="bg-gray-100 text-gray-500 text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">
+                      <span className="bg-gray-100 text-gray-600 border border-gray-200 text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">
                         Đã kết thúc
                       </span>
                     ) : (
-                      <span className="bg-orange-100 text-orange-600 text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">
-                        Đang mở đăng ký
+                      <span className="bg-orange-100 text-orange-700 border border-orange-200 text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">
+                        Sắp diễn ra (Mở đăng ký)
                       </span>
                     )}
                   </div>
@@ -211,22 +220,37 @@ Ban tổ chức sẽ liên hệ bạn sớm!`);
 
                 {/* Cột Action */}
                 <div className="w-full md:w-56 p-6 bg-gray-50 flex flex-col items-center justify-center border-l border-gray-100">
-                  {tournament.max_participants && tournament.participants_count >= tournament.max_participants ? (
+                  {tournament.status === 'ongoing' ? (
                     <>
-                      <p className="text-sm text-red-500 mb-4 text-center font-bold">Đã đủ số lượng đăng ký!</p>
-                      <div className="w-full bg-gray-200 text-gray-400 font-bold py-3 px-4 rounded-xl text-center select-none cursor-not-allowed">
-                        Đã đóng đăng ký
+                      <p className="text-xs text-amber-700 mb-3 text-center font-bold">⚠️ Giải đang diễn ra</p>
+                      <div className="w-full bg-amber-100 text-amber-800 font-bold py-3 px-4 rounded-xl text-center text-xs select-none cursor-not-allowed border border-amber-200">
+                        Đã khóa đăng ký
+                      </div>
+                    </>
+                  ) : tournament.status === 'finished' ? (
+                    <>
+                      <p className="text-xs text-gray-500 mb-3 text-center font-bold">🏁 Giải đấu đã kết thúc</p>
+                      <div className="w-full bg-gray-200 text-gray-500 font-bold py-3 px-4 rounded-xl text-center text-xs select-none cursor-not-allowed">
+                        Đã đóng giải
+                      </div>
+                    </>
+                  ) : tournament.max_participants && tournament.participants_count >= tournament.max_participants ? (
+                    <>
+                      <p className="text-xs text-red-500 mb-3 text-center font-bold">❌ Đã đủ số lượng đội!</p>
+                      <div className="w-full bg-gray-200 text-gray-400 font-bold py-3 px-4 rounded-xl text-center text-xs select-none cursor-not-allowed">
+                        Đã đủ suất
                       </div>
                     </>
                   ) : (
                     <>
-                      <p className="text-sm text-gray-500 mb-4 text-center">Chỉ còn vài suất trống, hãy nhanh tay!</p>
+                      <p className="text-xs text-gray-500 mb-3 text-center font-medium">Chỉ còn vài suất trống, hãy nhanh tay!</p>
                       <button 
+                        type="button"
                         onClick={() => handleJoinTournament(tournament)}
-                        className="w-full bg-orange-500 text-white font-bold py-3 px-4 rounded-xl shadow-md hover:bg-orange-600 hover:shadow-lg transition-all flex justify-center items-center gap-2"
+                        className="w-full bg-orange-500 text-white font-bold py-3 px-4 rounded-xl shadow-md hover:bg-orange-600 hover:shadow-lg transition-all flex justify-center items-center gap-1.5 cursor-pointer border-0 text-xs"
                       >
                         Tham gia ngay
-                        <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
+                        <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
                       </button>
                     </>
                   )}

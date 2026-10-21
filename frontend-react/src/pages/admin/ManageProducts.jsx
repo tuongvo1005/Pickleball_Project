@@ -16,6 +16,7 @@ const ManageProducts = () => {
   const [formData, setFormData] = useState({
     name: '',
     price: '',
+    rental_price: '',
     stock: '',
     description: '',
     image_url: 'https://images.unsplash.com/photo-1542323812-70b9231802aa?q=80&w=800&auto=format&fit=crop'
@@ -49,6 +50,7 @@ const ManageProducts = () => {
     setFormData({
       name: '',
       price: '',
+      rental_price: '',
       stock: '',
       description: '',
       image_url: 'https://images.unsplash.com/photo-1542323812-70b9231802aa?q=80&w=800&auto=format&fit=crop'
@@ -63,6 +65,7 @@ const ManageProducts = () => {
     setFormData({
       name: product.name,
       price: product.price,
+      rental_price: product.rental_price || '',
       stock: product.stock,
       description: product.description || '',
       image_url: product.image_url || 'https://images.unsplash.com/photo-1542323812-70b9231802aa?q=80&w=800&auto=format&fit=crop'
@@ -126,11 +129,78 @@ const ManageProducts = () => {
       .catch(err => toast.error('Lỗi khi xóa sản phẩm.'));
   };
 
+  // Sorting State
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState('asc');
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedProducts = (() => {
+    if (!sortField) return products;
+    return [...products].sort((a, b) => {
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+
+      if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = (bVal || '').toLowerCase();
+        return sortDirection === 'asc' 
+          ? aVal.localeCompare(bVal, 'vi') 
+          : bVal.localeCompare(aVal, 'vi');
+      }
+
+      aVal = Number(aVal || 0);
+      bVal = Number(bVal || 0);
+      return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+  })();
+
+  const renderSortHeader = (label, field) => (
+    <th 
+      onClick={() => handleSort(field)} 
+      className="px-6 py-4 font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition select-none group"
+      title={`Bấm để sắp xếp theo ${label}`}
+    >
+      <div className="flex items-center gap-1">
+        <span>{label}</span>
+        {sortField === field ? (
+          sortDirection === 'asc' 
+            ? <span className="material-symbols-outlined text-[16px] text-green-600 font-bold">arrow_upward</span>
+            : <span className="material-symbols-outlined text-[16px] text-green-600 font-bold">arrow_downward</span>
+        ) : (
+          <span className="material-symbols-outlined text-[16px] text-gray-300 opacity-60 group-hover:opacity-100 transition">unfold_more</span>
+        )}
+      </div>
+    </th>
+  );
+
+  const getProductCategoryLabel = (product) => {
+    if (!product) return 'Giày & Phụ kiện';
+    const name = String(product.name || '').toLowerCase();
+    const isAccessoryKeyword = name.includes('túi') || name.includes('bao') || name.includes('balo') || 
+                              name.includes('bag') || name.includes('giày') || name.includes('shoe') || 
+                              name.includes('quấn') || name.includes('mũ') || name.includes('nón') || 
+                              name.includes('áo') || name.includes('quần') || name.includes('khăn') || 
+                              name.includes('cover') || name.includes('case') || name.includes('bảo vệ') ||
+                              name.includes('phụ kiện');
+    if (isAccessoryKeyword) return 'Giày & Phụ kiện';
+    if (name.includes('vợt') || name.includes('paddle')) return 'Vợt Pickleball';
+    if (name.includes('bóng') || name.includes('ball')) return 'Bóng thi đấu';
+    return 'Giày & Phụ kiện';
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Cửa hàng & Sản phẩm</h1>
-        <button onClick={openAddModal} className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-green-700 transition shadow-sm">
+        <button onClick={openAddModal} className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-green-700 transition shadow-sm cursor-pointer">
           <span className="material-symbols-outlined text-[20px]">add</span>
           Thêm sản phẩm
         </button>
@@ -139,35 +209,40 @@ const ManageProducts = () => {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 text-gray-500 border-b border-gray-100">
+            <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                <th className="px-6 py-4 font-medium">Sản phẩm</th>
-                <th className="px-6 py-4 font-medium">Giá bán</th>
-                <th className="px-6 py-4 font-medium">Tồn kho</th>
-                <th className="px-6 py-4 font-medium">Trạng thái</th>
-                <th className="px-6 py-4 font-medium text-right">Thao tác</th>
+                {renderSortHeader('Sản phẩm', 'name')}
+                {renderSortHeader('Giá bán', 'price')}
+                {renderSortHeader('Tồn kho', 'stock')}
+                {renderSortHeader('Trạng thái', 'status')}
+                <th className="px-6 py-4 font-semibold text-gray-700 text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr><td colSpan="5" className="text-center py-10">Đang tải dữ liệu...</td></tr>
-              ) : products.length === 0 ? (
+              ) : sortedProducts.length === 0 ? (
                 <tr><td colSpan="5" className="text-center py-10">Chưa có dữ liệu</td></tr>
               ) : (
-                products.map((product) => (
+                sortedProducts.map((product) => (
                   <tr key={product.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center shrink-0 overflow-hidden">
+                      <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center shrink-0 overflow-hidden border border-gray-200">
                         {product.image_url ? (
                            <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
                         ) : (
                            <span className="material-symbols-outlined text-gray-400">inventory_2</span>
                         )}
                       </div>
-                      <span className="font-bold text-gray-900 line-clamp-1">{product.name}</span>
+                      <div>
+                        <div className="font-bold text-gray-900 line-clamp-1">{product.name}</div>
+                        <span className="inline-block mt-0.5 text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-extrabold border border-blue-100">
+                          {getProductCategoryLabel(product)}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-blue-600 font-bold">{Number(product.price).toLocaleString('vi-VN')}đ</td>
-                    <td className="px-6 py-4 text-gray-600">{product.stock}</td>
+                    <td className="px-6 py-4 text-gray-600 font-semibold">{product.stock}</td>
                     <td className="px-6 py-4">
                       {product.stock > 0 ? (
                         <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Còn hàng</span>
@@ -230,6 +305,7 @@ const ManageProducts = () => {
                   />
                   {errors.price && <span className="text-red-500 text-xs mt-1 block">{errors.price[0]}</span>}
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Số lượng tồn kho</label>
                   <input 

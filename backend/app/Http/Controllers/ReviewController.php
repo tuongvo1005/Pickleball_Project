@@ -91,7 +91,49 @@ class ReviewController extends Controller
     }
 
     /**
-     * Xóa đánh giá (Ẩn đánh giá vi phạm - Dành cho Admin)
+     * Cập nhật / Sửa đánh giá
+     */
+    public function update(Request $request, $id)
+    {
+        $review = Review::find($id);
+
+        if (!$review) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy đánh giá.'
+            ], 404);
+        }
+
+        if ($request->user() && $request->user()->id !== $review->user_id && $request->user()->role !== 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn không có quyền chỉnh sửa đánh giá này.'
+            ], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'rating' => 'sometimes|required|integer|min:1|max:5',
+            'comment' => 'nullable|string|max:1000'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $review->update($request->only(['rating', 'comment']));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cập nhật đánh giá thành công!',
+            'data' => $review
+        ], 200);
+    }
+
+    /**
+     * Xóa vĩnh viễn đánh giá (Dành cho Admin)
      */
     public function destroy($id)
     {
@@ -104,12 +146,35 @@ class ReviewController extends Controller
             ], 404);
         }
 
-        // Thay vì xóa vĩnh viễn, cập nhật trạng thái thành 'hidden'
-        $review->update(['status' => 'hidden']);
+        $review->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Ẩn đánh giá vi phạm thành công!'
+            'message' => 'Đã xóa vĩnh viễn đánh giá thành công!'
+        ], 200);
+    }
+
+    /**
+     * Chuyển đổi trạng thái Ẩn / Hiện đánh giá (Dành cho Admin)
+     */
+    public function toggleHide($id)
+    {
+        $review = Review::find($id);
+
+        if (!$review) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy đánh giá.'
+            ], 404);
+        }
+
+        $newStatus = $review->status === 'hidden' ? 'active' : 'hidden';
+        $review->update(['status' => $newStatus]);
+
+        return response()->json([
+            'success' => true,
+            'message' => $newStatus === 'hidden' ? 'Đã ẩn đánh giá thành công!' : 'Đã hiển thị lại đánh giá thành công!',
+            'data' => $review
         ], 200);
     }
 }

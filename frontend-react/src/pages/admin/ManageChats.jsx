@@ -263,14 +263,7 @@ const ManageChats = () => {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <button className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 transition-colors border-0 bg-transparent cursor-pointer flex items-center justify-center">
-                    <span className="material-symbols-outlined text-[20px]">phone</span>
-                  </button>
-                  <button className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 transition-colors border-0 bg-transparent cursor-pointer flex items-center justify-center">
-                    <span className="material-symbols-outlined text-[20px]">videocam</span>
-                  </button>
-                </div>
+                {/* 2 Nút gọi điện thoại & Video call đã được ẩn theo yêu cầu */}
               </div>
 
               {/* Messages Body */}

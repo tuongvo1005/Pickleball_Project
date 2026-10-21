@@ -23,7 +23,7 @@ const Courts = () => {
   // Online Payment States
   const [isPayingOnline, setIsPayingOnline] = useState(false);
   const [createdBooking, setCreatedBooking] = useState(null);
-  const [paymentTimeLeft, setPaymentTimeLeft] = useState(300);
+  const [paymentTimeLeft, setPaymentTimeLeft] = useState(600);
   const [onlinePaymentStep, setOnlinePaymentStep] = useState('waiting'); // waiting, processing, success
   const [activePaymentMethod, setActivePaymentMethod] = useState('momo'); // momo, vietqr
 
@@ -168,10 +168,18 @@ const Courts = () => {
     axiosClient.get('/bookings')
       .then(response => {
         const allBookings = response.data.data || [];
-        const courtBookings = allBookings.filter(b => 
-          b.court_id?.toString() === selectedCourt.id.toString() && 
-          (b.payment_status === 'paid' || b.payment_status === 'pending')
-        );
+        const now = new Date();
+        const courtBookings = allBookings.filter(b => {
+          if (b.court_id?.toString() !== selectedCourt.id.toString()) return false;
+          if (b.status === 'cancelled' || b.payment_status === 'failed') return false;
+          if (b.payment_status === 'paid') return true;
+          if (b.payment_status === 'pending') {
+            const createdAt = new Date(b.created_at || b.updated_at);
+            const diffMinutes = (now - createdAt) / (1000 * 60);
+            return diffMinutes < 10;
+          }
+          return false;
+        });
         setExistingBookings(courtBookings);
       })
       .catch(err => {
@@ -217,7 +225,12 @@ const Courts = () => {
   };
 
   const handleBookingClick = (court) => {
-    if (!user) {
+    if (court.status === 'maintenance') {
+      toast.warning('Sân này đang trong thời gian bảo trì, quý khách không thể truy cập hoặc đặt lịch!');
+      return;
+    }
+    const token = localStorage.getItem('ACCESS_TOKEN');
+    if (!user || !user.id || !token) {
       toast.warning('Vui lòng đăng nhập để thực hiện tính năng đặt sân!');
       navigate('/login');
       return;
@@ -228,6 +241,17 @@ const Courts = () => {
   };
 
   const handleCloseModal = () => {
+    if (isPayingOnline && createdBooking && onlinePaymentStep === 'waiting') {
+      axiosClient.put(`/bookings/${createdBooking.id}`, {
+        status: 'cancelled',
+        payment_status: 'failed'
+      })
+      .then(() => {
+        toast.info("Đã hủy quá trình đặt cọc và giải phóng ca chơi.");
+        fetchCourtBookings();
+      })
+      .catch(err => console.error("Lỗi giải phóng ca tạm giữ:", err));
+    }
     setSelectedCourt(null);
     setBookingDate(getTodayString());
     setModalStartTime('08:00');
@@ -235,7 +259,7 @@ const Courts = () => {
     setIsPayingOnline(false);
     setCreatedBooking(null);
     setOnlinePaymentStep('waiting');
-    setPaymentTimeLeft(300);
+    setPaymentTimeLeft(600);
     setActivePaymentMethod('momo');
   };
 
@@ -248,6 +272,10 @@ const Courts = () => {
         setPaymentTimeLeft(prev => {
           if (prev <= 1) {
             clearInterval(timer);
+            toast.error("Thời gian tạm giữ chỗ (10 phút) đã hết! Ca chơi đã được giải phóng cho người khác.");
+            setIsPayingOnline(false);
+            setCreatedBooking(null);
+            fetchCourtBookings();
             return 0;
           }
           return prev - 1;
@@ -280,7 +308,8 @@ const Courts = () => {
   };
 
   const confirmBooking = () => {
-    if (!user) {
+    const token = localStorage.getItem('ACCESS_TOKEN');
+    if (!user || !user.id || !token) {
       toast.warning('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!');
       navigate('/login');
       return;
@@ -297,7 +326,7 @@ const Courts = () => {
     }
 
     if (isSlotDisabled(modalStartTime)) {
-      toast.error('Khung giờ này đã được đặt hoặc đã trôi qua! Vui lòng chọn giờ bắt đầu khác.');
+      toast.error('Khung giờ này đang được tạm giữ hoặc đã có khách đặt! Vui lòng chọn giờ bắt đầu khác.');
       return;
     }
 
@@ -326,8 +355,9 @@ const Courts = () => {
       setCreatedBooking(booking);
       setIsPayingOnline(true);
       setOnlinePaymentStep('waiting');
-      setPaymentTimeLeft(300);
+      setPaymentTimeLeft(600); // 10 phút tạm giữ
       setBookingLoading(false);
+      fetchCourtBookings();
     })
     .catch(err => {
       console.error("Lỗi đặt sân từ trang danh sách sân:", err);
@@ -481,17 +511,35 @@ const Courts = () => {
                         
                         <div className="flex gap-2 flex-wrap">
                           <button 
-                            onClick={() => navigate(`/courts/${court.id}`)}
+                            onClick={() => {
+                              if (court.status === 'maintenance') {
+                                toast.warning('Sân này đang trong thời gian bảo trì, quý khách không thể truy cập hoặc đặt lịch!');
+                                return;
+                              }
+                              navigate(`/courts/${court.id}`);
+                            }}
                             className="flex-1 py-2 text-sm font-semibold rounded-lg border border-green-600 text-green-600 hover:bg-green-50 transition-colors cursor-pointer"
                           >
                             Chi tiết
                           </button>
-                          <button 
-                            onClick={() => handleBookingClick(court)}
-                            className="flex-1 py-2 text-sm font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors shadow-sm"
-                          >
-                            Đặt sân
-                          </button>
+                          {court.status === 'maintenance' ? (
+                            <button 
+                              onClick={() => {
+                                toast.warning('Sân này đang trong thời gian bảo trì, quý khách không thể truy cập hoặc đặt lịch!');
+                              }}
+                              className="flex-1 py-2 text-sm font-semibold rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors shadow-sm cursor-pointer flex items-center justify-center gap-1"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">construction</span>
+                              Đang bảo trì
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={() => handleBookingClick(court)}
+                              className="flex-1 py-2 text-sm font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors shadow-sm cursor-pointer"
+                            >
+                              Đặt sân
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

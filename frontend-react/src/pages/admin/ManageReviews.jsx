@@ -30,62 +30,131 @@ const ManageReviews = () => {
     fetchReviews();
   }, []);
 
-  const handleTriggerHide = (review) => {
+  // Toggle Hide / Unhide
+  const handleToggleHide = async (review) => {
+    try {
+      const res = await axiosClient.put(`/reviews/${review.id}/toggle-hide`);
+      if (res.data.success) {
+        toast.success(res.data.message);
+        fetchReviews();
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Không thể thay đổi trạng thái đánh giá.');
+    }
+  };
+
+  // Trigger Delete Confirmation Modal
+  const handleTriggerDelete = (review) => {
     setReviewToHide(review);
     setShowConfirmModal(true);
   };
 
-  const handleConfirmHide = async () => {
+  // Confirm Hard Delete
+  const handleConfirmDelete = async () => {
     if (!reviewToHide) return;
     setSubmitting(true);
     try {
-      // Gọi API xóa (hệ thống sẽ cập nhật trạng thái thành 'hidden' thay vì xóa vĩnh viễn)
       const res = await axiosClient.delete(`/reviews/${reviewToHide.id}`);
       if (res.data.success) {
-        toast.success(res.data.message || 'Ẩn đánh giá vi phạm thành công!');
+        toast.success(res.data.message || 'Đã xóa vĩnh viễn đánh giá thành công!');
         setShowConfirmModal(false);
         setReviewToHide(null);
-        fetchReviews(); // Tải lại danh sách
+        fetchReviews();
       }
     } catch (err) {
       console.error(err);
-      const msg = err.response?.data?.message || 'Có lỗi xảy ra khi ẩn đánh giá.';
+      const msg = err.response?.data?.message || 'Có lỗi xảy ra khi xóa đánh giá.';
       toast.error(msg);
     } finally {
       setSubmitting(false);
     }
   };
 
+  // Sorting State
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState('asc');
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedReviews = (() => {
+    if (!sortField) return reviews;
+    return [...reviews].sort((a, b) => {
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+
+      if (sortField === 'user_name') {
+        aVal = a.user?.name || '';
+        bVal = b.user?.name || '';
+      } else if (sortField === 'target_name') {
+        aVal = a.reviewable?.name || '';
+        bVal = b.reviewable?.name || '';
+      }
+
+      if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = (bVal || '').toLowerCase();
+        return sortDirection === 'asc' 
+          ? aVal.localeCompare(bVal, 'vi') 
+          : bVal.localeCompare(aVal, 'vi');
+      }
+
+      aVal = Number(aVal || 0);
+      bVal = Number(bVal || 0);
+      return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+  })();
+
+  const renderSortHeader = (label, field) => (
+    <th 
+      onClick={() => handleSort(field)} 
+      className="px-6 py-4 font-bold text-xs uppercase tracking-wider text-gray-700 cursor-pointer hover:bg-gray-100 transition select-none group"
+      title={`Bấm để sắp xếp theo ${label}`}
+    >
+      <div className="flex items-center gap-1">
+        <span>{label}</span>
+        {sortField === field ? (
+          sortDirection === 'asc' 
+            ? <span className="material-symbols-outlined text-[15px] text-green-600 font-bold">arrow_upward</span>
+            : <span className="material-symbols-outlined text-[15px] text-green-600 font-bold">arrow_downward</span>
+        ) : (
+          <span className="material-symbols-outlined text-[15px] text-gray-300 opacity-60 group-hover:opacity-100 transition">unfold_more</span>
+        )}
+      </div>
+    </th>
+  );
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Quản lý Đánh giá</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Rà soát và ẩn các bài đánh giá có nội dung không phù hợp hoặc vi phạm tiêu chuẩn cộng đồng.
-          </p>
+          <h1 className="text-2xl font-bold text-gray-900">Quản lý Đánh giá & Phản hồi</h1>
+          <p className="text-sm text-gray-500 mt-1">Theo dõi, ẩn/hiện hoặc xóa các đánh giá từ khách hàng.</p>
         </div>
-        <button 
-          onClick={fetchReviews} 
-          disabled={loading}
-          className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-gray-50 transition shadow-sm active:scale-95 disabled:opacity-50"
-        >
-          <span className={`material-symbols-outlined text-[20px] ${loading ? 'animate-spin' : ''}`}>refresh</span>
-          Làm mới
+        <button onClick={fetchReviews} className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 text-gray-600 bg-white hover:bg-gray-50 rounded-xl text-sm font-semibold cursor-pointer">
+          <span className="material-symbols-outlined text-[18px]">refresh</span>
+          Tải lại
         </button>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm border-collapse">
-            <thead className="bg-gray-50 text-gray-500 border-b border-gray-100 uppercase text-xs font-bold tracking-wider">
+            <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                <th className="px-6 py-4 font-medium">Người đánh giá</th>
-                <th className="px-6 py-4 font-medium">Đối tượng</th>
-                <th className="px-6 py-4 font-medium">Đánh giá</th>
-                <th className="px-6 py-4 font-medium">Nội dung bình luận</th>
-                <th className="px-6 py-4 font-medium">Trạng thái</th>
-                <th className="px-6 py-4 font-medium text-center">Thao tác</th>
+                {renderSortHeader('Người đánh giá', 'user_name')}
+                {renderSortHeader('Đối tượng', 'target_name')}
+                {renderSortHeader('Đánh giá', 'rating')}
+                <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider text-gray-700">Nội dung bình luận</th>
+                {renderSortHeader('Trạng thái', 'status')}
+                <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider text-center text-gray-700">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -96,7 +165,7 @@ const ManageReviews = () => {
                     Đang tải danh sách đánh giá...
                   </td>
                 </tr>
-              ) : reviews.length === 0 ? (
+              ) : sortedReviews.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="text-center py-12 text-gray-400">
                     <span className="material-symbols-outlined text-3xl mb-2 block">rate_review</span>
@@ -104,7 +173,7 @@ const ManageReviews = () => {
                   </td>
                 </tr>
               ) : (
-                reviews.map((review) => {
+                sortedReviews.map((review) => {
                   const targetName = review.reviewable
                     ? (review.reviewable_type.includes('Court')
                         ? `Sân: ${review.reviewable.name}`
@@ -162,7 +231,7 @@ const ManageReviews = () => {
                       {/* Trạng thái */}
                       <td className="px-6 py-4">
                         {review.status === 'hidden' ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
                             <span className="material-symbols-outlined text-[14px]">visibility_off</span>
                             Đã ẩn
                           </span>
@@ -176,18 +245,18 @@ const ManageReviews = () => {
 
                       {/* Thao tác */}
                       <td className="px-6 py-4 text-center">
-                        {review.status !== 'hidden' ? (
+                        <div className="flex items-center justify-center gap-2">
+                          {/* Nút Ẩn/Hiện đánh giá đã được ẩn theo yêu cầu */}
+
                           <button
-                            onClick={() => handleTriggerHide(review)}
-                            className="inline-flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-1.5 rounded-xl transition text-xs border border-red-100 active:scale-95"
-                            title="Xóa/Ẩn đánh giá vi phạm"
+                            onClick={() => handleTriggerDelete(review)}
+                            className="inline-flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-1.5 rounded-xl transition text-xs border border-red-100 cursor-pointer"
+                            title="Xóa vĩnh viễn đánh giá khỏi CSDL"
                           >
                             <span className="material-symbols-outlined text-[14px]">delete</span>
-                            Xóa/Ẩn
+                            Xóa
                           </button>
-                        ) : (
-                          <span className="text-xs text-gray-400 italic font-medium">Bảo lưu (Đã ẩn)</span>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -198,7 +267,7 @@ const ManageReviews = () => {
         </div>
       </div>
 
-      {/* CONFIRM HIDE MODAL */}
+      {/* CONFIRM DELETE MODAL */}
       {showConfirmModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 relative overflow-hidden animate-in fade-in zoom-in-95 duration-200">
@@ -210,12 +279,12 @@ const ManageReviews = () => {
               <span className="material-symbols-outlined">close</span>
             </button>
             <div className="flex items-center gap-3 text-red-600 mb-4">
-              <span className="material-symbols-outlined text-3xl">warning</span>
-              <h3 className="text-lg font-black">Xác nhận ẩn đánh giá</h3>
+              <span className="material-symbols-outlined text-3xl">delete_forever</span>
+              <h3 className="text-lg font-black">Xác nhận xóa vĩnh viễn</h3>
             </div>
             
             <p className="text-sm text-gray-500 mb-4">
-              Bạn có chắc chắn muốn ẩn đánh giá này không? Dữ liệu gốc sẽ không bị xóa vĩnh viễn, nhưng đánh giá này sẽ **lập tức biến mất** khỏi danh sách hiển thị với khách hàng.
+              Bạn có chắc chắn muốn **xóa vĩnh viễn** bài đánh giá này không? Dữ liệu sẽ bị xóa hoàn toàn khỏi cơ sở dữ liệu và **không thể khôi phục**.
             </p>
 
             <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-6 text-sm text-gray-700">
@@ -231,21 +300,21 @@ const ManageReviews = () => {
               <button
                 type="button"
                 onClick={() => setShowConfirmModal(false)}
-                className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-bold hover:bg-gray-50 transition text-sm"
+                className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-bold hover:bg-gray-50 transition text-sm cursor-pointer"
               >
-                Đóng
+                Hủy bỏ
               </button>
               <button
-                onClick={handleConfirmHide}
+                onClick={handleConfirmDelete}
                 disabled={submitting}
-                className="flex items-center gap-1.5 bg-red-600 text-white font-bold px-6 py-2.5 rounded-xl hover:bg-red-700 transition shadow-md disabled:opacity-60 disabled:cursor-not-allowed text-sm"
+                className="flex items-center gap-1.5 bg-red-600 text-white font-bold px-6 py-2.5 rounded-xl hover:bg-red-700 transition shadow-md disabled:opacity-60 disabled:cursor-not-allowed text-sm cursor-pointer"
               >
                 {submitting ? (
                   <span className="material-symbols-outlined animate-spin text-[16px]">autorenew</span>
                 ) : (
-                  <span className="material-symbols-outlined text-[16px]">check</span>
+                  <span className="material-symbols-outlined text-[16px]">delete</span>
                 )}
-                {submitting ? 'Đang thực hiện...' : 'Đồng ý'}
+                {submitting ? 'Đang xóa...' : 'Xóa vĩnh viễn'}
               </button>
             </div>
           </div>
